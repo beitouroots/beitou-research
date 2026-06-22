@@ -116,6 +116,12 @@
   }
   body.lightmode .up,body.lightmode .t-chg.up{color:#13864a;}
   body.lightmode .down,body.lightmode .t-chg.down{color:#cf3a20;}
+  /* story body text: was a dim gray for dark mode; force a readable dark on the white cards */
+  body.lightmode .vector .blist li{color:#2f343c;}
+  body.lightmode .subline{color:#4a5160;}
+  /* the Big Brain anchor card stays DARK in light mode, so keep ITS text light */
+  body.lightmode .anchor h2{color:#f6f3ec;}
+  body.lightmode .anchor .blist strong{color:#ffffff;}
   body.lightmode .brand .bn b{color:#13864a;}
   body.lightmode .toggle button.on{color:#0a0d13;}
   body.lightmode h1.title .pop{color:#1b1205;}            /* dark text on the amber highlight */
