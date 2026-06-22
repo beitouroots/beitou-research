@@ -103,10 +103,11 @@
   .actions{position:fixed;top:14px;right:14px;z-index:50;}
   .btn{font-family:'JetBrains Mono',monospace;font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;cursor:pointer;background:var(--grass);color:var(--bg);border:2px solid var(--bg);box-shadow:4px 4px 0 var(--shadow);padding:9px 13px;}
   @media print{.audio,.actions,.toggle{display:none;}body{background:#fff;color:#000;}.vector,.mast,.anchor,.tile{box-shadow:none;}}
-  /* ticker tiles are clickable to StockTwits */
-  .tile{cursor:pointer;transition:border-color .12s, transform .08s;}
-  .tile:hover{border-color:var(--ac);}
-  .tile:active{transform:translate(1px,1px);}
+  /* only tiles with a live StockTwits feed become clickable */
+  .tile{transition:border-color .12s, transform .08s;}
+  .tile.linked{cursor:pointer;}
+  .tile.linked:hover{border-color:var(--ac);}
+  .tile.linked:active{transform:translate(1px,1px);}
 
   /* ---- LIGHT MODE: the Morning edition reads on a white background; Afternoon stays dark ---- */
   body.lightmode{
@@ -330,7 +331,7 @@
       <h3 class="vhead">Chips and Banks Partied, the Mag 7 Got Rugged</h3>
       <ul class="blist">
         <li><strong>🟢 Up:</strong> chips kept ripping, <strong>Micron and SanDisk +5%</strong>. Banks joined in, <strong>BofA and JPMorgan ~+2%</strong>. <strong>Caterpillar +2.5%</strong> and <strong>Nvidia +1.3%</strong> led the Dow. 💪</li>
-        <li><strong>🔴 Down:</strong> <strong>Alphabet -6.7% (GOOGL)</strong>, its worst day in a year. <strong>Amazon -4.8%</strong>, <strong>Microsoft -3%</strong>, <strong>Meta -2.3%</strong>, Palantir ~-4%. The AI-capex jitters hit the giants hard.</li>
+        <li><strong>🔴 Down:</strong> <strong>Alphabet -4.9% (GOOGL)</strong>, its worst day in a year. <strong>Amazon -4.8%</strong>, <strong>Microsoft -3%</strong>, <strong>Meta -2.3%</strong>, Palantir ~-4%. The AI-capex jitters hit the giants hard.</li>
         <li><strong>🛰️ The faceplant:</strong> <strong>SpaceX cratered -16.4%</strong>, its biggest down day yet, after confirming a first-ever $20B bond sale. It is now down ~24% over three sessions. Oof. 📉</li>
       </ul>
       <div class="sources"><span class="src-lbl">Sources</span>
@@ -342,9 +343,9 @@
 
     <div class="vector c4"><div class="vnum"><div class="cube">03</div></div><div class="vbody">
       <div class="vtag">💥 The Standout</div>
-      <h3 class="vhead">Google's AI Brain Drain Wipes Out $250 Billion</h3>
+      <h3 class="vhead">Google's AI Brain Drain Wipes Out ~$200 Billion</h3>
       <ul class="blist">
-        <li><strong>The story:</strong> <strong>Alphabet plunged ~6.7% (GOOGL)</strong>, erasing roughly <strong>$250B in market cap</strong> on its worst day in a year, as two of its top AI minds bolted for rivals. 🧠➡️🚪</li>
+        <li><strong>The story:</strong> <strong>Alphabet dropped ~4.9% (GOOGL)</strong>, erasing roughly <strong>~$200B in market cap</strong> on its worst day in a year, as two of its top AI minds bolted for rivals. 🧠➡️🚪</li>
         <li><strong>The exits:</strong> Gemini co-lead <strong>Noam Shazeer left for OpenAI</strong> (less than two years after Google paid $2.7B to bring him back), and Nobel laureate <strong>John Jumper of DeepMind left for Anthropic</strong>. Brutal back-to-back.</li>
         <li><strong>The deeper fear:</strong> it lands on top of Alphabet's plan to raise <strong>~$80B in equity</strong> to fund <strong>$180-190B of 2026 AI capex</strong>. Talent walking + spending soaring = the market's least favorite combo. 💸</li>
       </ul>
@@ -375,7 +376,7 @@
       <h3 class="vhead">What Lit Up FinTwit After the Bell</h3>
       <ul class="blist">
         <li><strong>🛰️ $SPCX (SpaceX):</strong> <strong>-16.4%</strong>, the biggest down day since its debut, on the $20B bond-sale news. Topping the boards three days running.</li>
-        <li><strong>🔻 $GOOGL (Alphabet):</strong> <strong>~-6.7%</strong>, worst day in a year, as the Shazeer and Jumper exits had the whole feed debating Google's AI moat.</li>
+        <li><strong>🔻 $GOOGL (Alphabet):</strong> <strong>~-4.9%</strong>, worst day in a year, as the Shazeer and Jumper exits had the whole feed debating Google's AI moat.</li>
         <li><strong>💾 $MU (Micron):</strong> <strong>+5%</strong> into Wednesday's print. The AI-memory complex stays the room's favorite long.</li>
         <li><strong>🟢 $IWM (Russell 2000):</strong> small caps cleared <strong>3,000 for the first time</strong>, and the rotation crowd is taking a victory lap.</li>
       </ul>
@@ -392,7 +393,7 @@
       <h2>The Great Rotation Just Got Real</h2>
       <ul class="blist">
         <li><strong>The takeaway:</strong> today wasn't a sell-off, it was a <strong>handoff</strong>. Money fled the mega-cap AI giants and poured into small caps and chips, pushing the <strong>Russell 2000 to its first close above 3,000</strong>.</li>
-        <li><strong>The tell:</strong> Alphabet bleeding $250B on talent and capex fears, while banks and small caps rip, says the market is done paying any price for the Mag 7 and is hunting cheaper, broader bets. 🔄</li>
+        <li><strong>The tell:</strong> Alphabet bleeding ~$200B on talent and capex fears, while banks and small caps rip, says the market is done paying any price for the Mag 7 and is hunting cheaper, broader bets. 🔄</li>
         <li><strong>The fuel:</strong> cheap Iranian oil keeps cooling inflation, which is exactly the cover the rotation needs. The risk: a hot core PCE Thursday could yank that rug.</li>
         <li><strong>TL;DR:</strong> leadership is changing hands in real time. Watch whether the Russell holds 3,000 and whether Micron Wednesday keeps the chip story alive. 🔒</li>
       </ul>
@@ -425,7 +426,7 @@
   // ---- audio (live read-aloud) ----
   var VO = {
     am: "Rise and shine. It's a brand new week, and opportunity is wide open. Good morning, and welcome to your Morning Buzz from Beitou Roots Research for Monday, June twenty-second. Take a deep breath, grab your coffee, and let's get you sharp before the bell. Today is yours to win. Let's go. Story one, geopolitics. Despite a rocky weekend, the U S and Iran agreed on a roadmap to a final deal within sixty days, and Iran will let nuclear inspectors back in. The big one for markets, Treasury waived sanctions on Iranian crude, so Iranian oil is flooding back into the world for the first time since twenty eighteen. W T I cracked below seventy-four dollars, its lowest since early March. Cheaper oil cools inflation, and that's the whole ballgame. Story two, the Fed. After last week's hawkish hold, this week is all about Thursday's core P C E. The Street sees it near three point four four percent, the hottest since twenty twenty-three. Deutsche Bank now expects two hikes this year and Bank of America flipped to three. Watch the print, not the speeches. Story three, tech. The Nasdaq one hundred went full A I today, swapping in CoreWeave, Astera Labs, Nebius, Rocket Lab and Teradyne. But the rookies got dunked, CoreWeave fell about eight and a half percent and Rocket Lab dropped about seven, because the new float based index rule means less forced buying than the hype crowd expected. Micron reports Wednesday as the next big chip tell. Story four, macro. It's a split tape, the Dow is up about a third of a percent while big-cap tech wobbles on the rebalance. The ten year yield sits near four and a half percent, a thirteen month high, and that's the lid on stretched multiples. In deal news, AbbVie is buying Apogee for almost eleven billion dollars, sending Apogee up forty-seven percent. And quickly, what's buzzing on fintwit. CoreWeave and Rocket Lab are sliding on their index debut, Apogee is ripping on the buyout, and Micron is up four percent into Wednesday. And the big brain, it's a tug of war that owns twenty twenty-six, cheap Iranian oil pulling inflation down versus a hawkish Fed and hot P C E pulling it up. Watch the spread between sticky services inflation and the collapsing oil tape, because whoever wins decides if the year ends with hikes or a soft landing. That's your Morning Buzz. Now go out there and own this day. We're rooting for you.",
-    pm: "Good afternoon, and take a breath, you've earned it. The closing bell has rung, the market is shut for the day, and your workday is almost in the books. This is your Afternoon Buzz from Beitou Roots Research, your quick closing rundown. It was a split tape, and a historic one. The Russell two thousand closed above three thousand for the very first time, finishing up almost one percent. But big tech got rugged, the Nasdaq fell one and a third percent and the S and P slipped a touch, while the Dow rose on banks and cyclicals. The day's biggest story, Alphabet fell nearly seven percent, its worst day in a year, wiping out roughly two hundred fifty billion dollars after two of its top A I minds bolted, Noam Shazeer to OpenAI and Nobel winner John Jumper to Anthropic, all on top of a massive capex bill. SpaceX cratered sixteen percent on a twenty billion dollar bond sale, now down about a quarter over three days. On the green side, chips kept ripping, Micron and SanDisk up five percent, and banks added two. The bottom line, this wasn't a sell-off, it was a handoff. Money left the giants and rotated into small caps and chips, and cheap Iranian oil keeps cooling inflation to give that rotation cover. The risk, a hot core P C E on Thursday. On deck, Micron earnings Wednesday and that big P C E print. That's your Afternoon Buzz. Now close the laptop, step away from the screens, and go enjoy your evening, the people and the things that actually matter. The market will be here tomorrow. You earned the night off, so go live a little. We'll catch you bright and early with the Morning Buzz."
+    pm: "Good afternoon, and take a breath, you've earned it. The closing bell has rung, the market is shut for the day, and your workday is almost in the books. This is your Afternoon Buzz from Beitou Roots Research, your quick closing rundown. It was a split tape, and a historic one. The Russell two thousand closed above three thousand for the very first time, finishing up almost one percent. But big tech got rugged, the Nasdaq fell one and a third percent and the S and P slipped a touch, while the Dow rose on banks and cyclicals. The day's biggest story, Alphabet fell about five percent, its worst day in a year, wiping out roughly two hundred billion dollars after two of its top A I minds bolted, Noam Shazeer to OpenAI and Nobel winner John Jumper to Anthropic, all on top of a massive capex bill. SpaceX cratered sixteen percent on a twenty billion dollar bond sale, now down about a quarter over three days. On the green side, chips kept ripping, Micron and SanDisk up five percent, and banks added two. The bottom line, this wasn't a sell-off, it was a handoff. Money left the giants and rotated into small caps and chips, and cheap Iranian oil keeps cooling inflation to give that rotation cover. The risk, a hot core P C E on Thursday. On deck, Micron earnings Wednesday and that big P C E print. That's your Afternoon Buzz. Now close the laptop, step away from the screens, and go enjoy your evening, the people and the things that actually matter. The market will be here tomorrow. You earned the night off, so go live a little. We'll catch you bright and early with the Morning Buzz."
   };
   // Daily-fresh motivational bookends for the FULL read. Built from modular pools that
   // recombine into hundreds of variations and rotate by the calendar day, so the pump-up
@@ -627,9 +628,9 @@
     [/nasdaq|comp|qqq/i,'QQQ'],
     [/\bdow\b|djia/i,'DIA'],
     [/russell|\brut\b|2k|2000/i,'IWM'],
-    [/10\s*y|tnx|treasury|ust/i,'TNX'],
     [/wti|crude/i,'USO'],
     [/brent/i,'BNO']
+    // NOTE: 10Y UST / yields deliberately NOT linked (no live priced StockTwits feed, shows $0.00)
   ];
   function stSymbol(lbl){ for(var i=0;i<ST_MAP.length;i++){ if(ST_MAP[i][0].test(lbl)) return ST_MAP[i][1]; } return null; }
   function linkifyTiles(){
@@ -637,7 +638,7 @@
       if(t.dataset.linked) return;
       var le=t.querySelector('.t-lbl'); if(!le) return;
       var sym=stSymbol(le.textContent||''); if(!sym) return;
-      t.dataset.linked='1'; t.setAttribute('role','link'); t.title='Open '+sym+' on StockTwits';
+      t.dataset.linked='1'; t.classList.add('linked'); t.setAttribute('role','link'); t.title='Open '+sym+' on StockTwits';
       t.addEventListener('click',function(){ window.open('https://stocktwits.com/symbol/'+sym,'_blank','noopener'); });
     });
   }
