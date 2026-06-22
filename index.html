@@ -146,6 +146,7 @@
         <button class="cbtn" onclick="audioSeek('am',-1)" aria-label="Rewind one line">⏮</button>
         <button class="cbtn" onclick="audioSeek('am',1)" aria-label="Skip one line">⏭</button>
         <button class="cbtn spd" id="spd-am" onclick="audioSpeed('am')" aria-label="Playback speed">1&times;</button>
+        <button class="cbtn mode" id="mode-am" onclick="audioMode('am')" aria-label="Read mode">📖 Full</button>
         <select class="vsel" id="vsel-am" onchange="audioPickVoice(this.value)" aria-label="Voice"></select>
       </div></div>
     </div>
@@ -279,6 +280,7 @@
         <button class="cbtn" onclick="audioSeek('pm',-1)" aria-label="Rewind one line">⏮</button>
         <button class="cbtn" onclick="audioSeek('pm',1)" aria-label="Skip one line">⏭</button>
         <button class="cbtn spd" id="spd-pm" onclick="audioSpeed('pm')" aria-label="Playback speed">1&times;</button>
+        <button class="cbtn mode" id="mode-pm" onclick="audioMode('pm')" aria-label="Read mode">📖 Full</button>
         <select class="vsel" id="vsel-pm" onchange="audioPickVoice(this.value)" aria-label="Voice"></select>
       </div></div>
     </div>
@@ -408,8 +410,30 @@
     return (phon(txt).match(/[^.!?]+[.!?]+(\s|$)|\S.+$/g) || [phon(txt)])
       .map(function(s){return s.trim();}).filter(Boolean);
   }
-  var A = { which:null, idx:0, playing:false, rate:1, sents:[] };
+  var A = { which:null, idx:0, playing:false, rate:1, sents:[], voiceName:'', mode:'full' };
   var RATES=[1,1.25,1.5];
+
+  // Build the spoken text WORD-FOR-WORD from the on-page article (stories 1-5 + Big Brain).
+  function stripEmoji(s){ return s.replace(/[\uD800-\uDBFF][\uDC00-\uDFFF]/g,'').replace(/[←-⇿⌀-➿☀-⛿⬀-⯿️‍]/g,''); }
+  function cleanSpeak(s){
+    return stripEmoji(s)
+      .replace(/~/g,'about ')
+      .replace(/&amp;/g,' and ').replace(/&/g,' and ')
+      .replace(/(\d)\s*-\s*(\d)/g,'$1 to $2')   // ranges: 3.50-3.75% -> "to"
+      .replace(/\s+/g,' ').trim();
+  }
+  function articleSentences(which){
+    var ed=document.getElementById(which==='am'?'ed-morning':'ed-afternoon'); if(!ed) return [];
+    var out=[];
+    ed.querySelectorAll('.vector, .anchor').forEach(function(card){
+      var head=card.querySelector('.vhead, h2');
+      if(head){ var h=cleanSpeak(head.textContent); if(h){ if(!/[.!?]$/.test(h))h+='.'; out.push(h); } }
+      card.querySelectorAll('.blist li').forEach(function(li){
+        var t=cleanSpeak(li.textContent); if(t){ if(!/[.!?]$/.test(t))t+='.'; out.push(t); }
+      });
+    });
+    return out.map(function(s){return phon(s);}).filter(Boolean);
+  }
 
   // Voice selection: honor the user's saved pick, else auto-prefer enhanced/Siri-family.
   function savedVoiceName(){ return A.voiceName || (function(){try{return localStorage.getItem('buzz.voice')||'';}catch(e){return '';}})(); }
@@ -447,7 +471,15 @@
     ['am','pm'].forEach(function(k){ var b=document.getElementById('play-'+k); if(b) b.textContent=(A.playing&&A.which===k)?'⏸':'▶'; });
   }
   function statusEl(){ return A.which?document.getElementById('stat-'+A.which):null; }
-  function loadEdition(which){ A.which=which; A.idx=0; A.sents=toSentences(VO[which]); }
+  function loadEdition(which){ A.which=which; A.idx=0; A.sents = A.mode==='full' ? articleSentences(which) : toSentences(VO[which]); }
+  function audioMode(which){
+    A.mode = (A.mode==='full') ? 'quick' : 'full';
+    ['am','pm'].forEach(function(k){ var b=document.getElementById('mode-'+k); if(b) b.textContent = (A.mode==='full')?'📖 Full':'⚡ Quick'; });
+    loadEdition(A.which||which);
+    var st=document.getElementById('stat-'+(A.which||which));
+    if(st) st.textContent = (A.mode==='full')?('Full read — every word of stories 1-5 + Big Brain ('+A.sents.length+' lines).'):'Quick read — the tight summary.';
+    if(A.playing) speakIdx();
+  }
   function speakIdx(){
     window.speechSynthesis.cancel();
     if(!A.which||A.idx>=A.sents.length){ A.playing=false; A.idx=0; setPlayIcon(); var s=statusEl(); if(s)s.textContent='That’s the Buzz. Tap play to replay.'; return; }
