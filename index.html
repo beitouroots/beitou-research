@@ -399,6 +399,73 @@
     am: "Rise and shine. It's a brand new week, and opportunity is wide open. Good morning, and welcome to your Morning Buzz from Beitou Roots Research for Monday, June twenty-second, your first session back after the Juneteenth holiday. Take a deep breath, grab your coffee, and let's get you sharp before the bell. Today is yours to win. Let's go. Story one, geopolitics. Mediators Qatar and Pakistan say the U S and Iran agreed on a roadmap to a final deal within sixty days, with technical talks running all week in Switzerland. Vice President Vance called it a good foundation for a successful deal, and more than twelve million barrels crossed the Strait of Hormuz overnight with no shots fired. Less war risk means cheaper oil, with crude sliding back near seventy-five dollars. Story two, the Fed. In Kevin Warsh's first meeting the Fed held rates, but the dot plot flipped hawkish. Nine of eighteen officials now pencil in a hike this year, and some traders eye October. The bar to cut is now very high, so watch the inflation prints, not the press conference. Story three, tech. Micron reports Wednesday after the close, and it's the cleanest read on the A I memory boom. The Street wants gross margin near eighty-one percent, and Micron says its entire twenty twenty-six H B M output is already sold out. The stock popped four percent premarket. Story four, macro. Futures are green as Wall Street cheers the Iran roadmap and shrugs off the hawkish Fed. The Nasdaq jumped over two percent last week and the V I X is calm near seventeen, though fresh China export curbs are the wildcard to watch. And quickly, what's buzzing on fintwit. Intel is up on an Apple chip deal, Robinhood is ripping nearly nine percent, and SpaceX is sliding on a low E S G rating and an Elon clapback. And the big brain, the era of assuming the next move is a cut just ended. The Fed's median dot flipped to a hike, and that quietly reprices tech multiples, small caps, housing, and gold. The bulls' best hope is cheap oil cooling inflation first. That's your Morning Buzz. Now go out there and own this day. We're rooting for you.",
     pm: "Good afternoon, and take a breath, you've earned it. The closing bell has rung, the market is shut for the day, and your workday is almost in the books. This is your Afternoon Buzz from Beitou Roots Research, your quick closing rundown. Stocks shook off the Fed and ripped back green. The Russell two thousand led, up two percent, the Nasdaq up nearly two, the S and P up one percent, the Dow basically flat. Chips went nuclear. Marvell up twelve, SanDisk eleven, Intel ten and a half, as the A I trade broadens way past Nvidia. The small-cap rockets, Butterfly Network up forty-one percent. The lone loser was energy, torched as the U S and Iran signed their deal in France and oil sank. The standout, semis are the new market generals, money rotating into the picks and shovels of A I. On deck, Micron earnings Wednesday and the big May P C E Thursday. The bottom line, cheap oil is quietly doing the Fed's job, the rally is broadening, and the Iran headline is the one thing that flips the script. That's your Afternoon Buzz. Now close the laptop, step away from the screens, and go enjoy your evening, the people and the things that actually matter. The market will be here tomorrow. You earned the night off, so go live a little. We'll catch you bright and early with the Morning Buzz."
   };
+  // Daily-fresh motivational bookends for the FULL read. Built from modular pools that
+  // recombine into hundreds of variations and rotate by the calendar day, so the pump-up
+  // intro + wind-down outro change every day (never a stale repeated line) and the listener
+  // is left curious what tomorrow's hook will be.
+  var BK = {
+    amGreet:[
+      "Rise and shine.","Good morning, and let's get after it.","Up and at 'em, the bell's almost here.",
+      "Morning. The world's still waking up and you're already ahead.","New day, clean slate, wide-open opportunity.",
+      "Eyes open, the market doesn't wait and neither do you.","Good morning. Big day, let's meet it."
+    ],
+    amSpark:[
+      "It's a fresh page and you're the one holding the pen.","Champions are made in the quiet hour before everyone else shows up, and this is that hour.",
+      "Every green day starts with somebody who did the homework. Today that's you.","Pressure is a privilege, and you've got a front-row seat.",
+      "The people who win today prepared while others were still hitting snooze.","Opportunity doesn't knock twice, so let's answer it the first time.",
+      "Momentum loves the prepared, and you're about to be the most prepared person in the room."
+    ],
+    amCTA:[
+      "Grab your coffee, here's everything that matters before the open. Let's go.",
+      "Take a breath, get sharp, here's your edge before the bell. Let's roll.",
+      "Lock in, here's the board before the open. Let's get it.",
+      "Here's the whole setup before the open, every word of it. Let's go win."
+    ],
+    amClose:[
+      "And that's your Morning Buzz. You're caught up and you're sharp.",
+      "That's the setup. Right now you know more than the market does.",
+      "And there's your edge for the session. You're ready.",
+      "That's everything before the open. You're armed and dangerous."
+    ],
+    amSend:[
+      "Now go out there and own this day. We're rooting for you, and we'll see you this afternoon.",
+      "Go make it count. The recap's waiting for you after the close.",
+      "Now go win it, and come back this afternoon to see how it played out.",
+      "Go get it. Tomorrow's hook is already brewing, so we'll catch you bright and early."
+    ],
+    pmGreet:[
+      "Good afternoon, and take a breath, you've earned it.","Closing bell's done. Exhale.",
+      "Afternoon. The hard part's behind you.","And that's a wrap on the session. Nice work showing up.",
+      "Markets are shut, the day is yours again.","Good afternoon. The screens can wait a minute."
+    ],
+    pmSpark:[
+      "The market's closed, your workday is almost in the books, and the recap is short and sweet.",
+      "No more ticks to watch, just the story of how it all shook out.","Let's put a bow on the day before you log off.",
+      "Here's how it actually went, no spin, just the tape.","The bell rang, the dust settled, here's the read."
+    ],
+    pmClose:[
+      "And that's your Afternoon Buzz.","That's the day, start to finish.","And there's your closing read.","That's a wrap on the session."
+    ],
+    pmSend:[
+      "Now close the laptop, step away from the screens, and go enjoy your evening, the people and the things that actually matter. The market will be here tomorrow, and so will we.",
+      "Shut it down, go live a little, you earned the night off. We'll be back bright and early with the Morning Buzz.",
+      "Step away, recharge, and be present with your people tonight. Tomorrow's a fresh shot and we'll set it up for you in the morning.",
+      "Log off with your head high. Rest up, because tomorrow's setup is already taking shape and we'll have it ready at dawn."
+    ]
+  };
+  function dayIdx(){ var d=new Date(); return Math.floor((d - new Date(d.getFullYear(),0,0))/86400000); }
+  function pickD(arr,off){ var d=dayIdx()+off; return arr[((d%arr.length)+arr.length)%arr.length]; }
+  function dailyBook(which){
+    if(which==='am') return {
+      intro: pickD(BK.amGreet,0)+" "+pickD(BK.amSpark,3)+" This is your Morning Buzz from Beitou Roots Research. "+pickD(BK.amCTA,5),
+      outro: pickD(BK.amClose,2)+" "+pickD(BK.amSend,7)
+    };
+    return {
+      intro: pickD(BK.pmGreet,0)+" "+pickD(BK.pmSpark,3)+" This is your Afternoon Buzz from Beitou Roots Research. Here's how the day went.",
+      outro: pickD(BK.pmClose,2)+" "+pickD(BK.pmSend,7)
+    };
+  }
+
   // Teach the voice tricky words for the SPOKEN audio only (visible text is unchanged).
   function phon(s){
     return s
@@ -471,7 +538,15 @@
     ['am','pm'].forEach(function(k){ var b=document.getElementById('play-'+k); if(b) b.textContent=(A.playing&&A.which===k)?'⏸':'▶'; });
   }
   function statusEl(){ return A.which?document.getElementById('stat-'+A.which):null; }
-  function loadEdition(which){ A.which=which; A.idx=0; A.sents = A.mode==='full' ? articleSentences(which) : toSentences(VO[which]); }
+  function loadEdition(which){
+    A.which=which; A.idx=0;
+    if(A.mode==='full'){
+      var b=dailyBook(which);
+      A.sents = toSentences(b.intro).concat(articleSentences(which)).concat(toSentences(b.outro));
+    } else {
+      A.sents = toSentences(VO[which]);
+    }
+  }
   function audioMode(which){
     A.mode = (A.mode==='full') ? 'quick' : 'full';
     ['am','pm'].forEach(function(k){ var b=document.getElementById('mode-'+k); if(b) b.textContent = (A.mode==='full')?'📖 Full':'⚡ Quick'; });
