@@ -466,6 +466,14 @@
     };
   }
 
+  // BUZZ_BOOKENDS — the scheduled task rewrites ITS edition's one line each run with a FRESH,
+  // news-aware hype intro + wind-down outro for the FULL read. Leave the other edition's line
+  // untouched. If a line is left blank, the page falls back to the daily-rotating dailyBook() above.
+  var BOOK = {
+    am: { intro: "", outro: "" },
+    pm: { intro: "", outro: "" }
+  };
+
   // Teach the voice tricky words for the SPOKEN audio only (visible text is unchanged).
   function phon(s){
     return s
@@ -541,7 +549,7 @@
   function loadEdition(which){
     A.which=which; A.idx=0;
     if(A.mode==='full'){
-      var b=dailyBook(which);
+      var b=(BOOK[which]&&BOOK[which].intro&&BOOK[which].intro.trim())?BOOK[which]:dailyBook(which);
       A.sents = toSentences(b.intro).concat(articleSentences(which)).concat(toSentences(b.outro));
     } else {
       A.sents = toSentences(VO[which]);
