@@ -59,6 +59,10 @@
   .audio .play:active{transform:translate(2px,2px);box-shadow:2px 2px 0 var(--shadow);}
   .a-title{font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:.18em;text-transform:uppercase;color:var(--ac);}
   .a-sub{font-size:13px;color:var(--muted);margin-top:7px;}
+  .actrl{display:flex;gap:8px;margin-top:12px;flex-wrap:wrap;}
+  .actrl .cbtn{font-family:'JetBrains Mono',monospace;font-size:13px;min-width:42px;height:34px;padding:0 12px;cursor:pointer;background:var(--bg);color:var(--ac);border:2px solid var(--ac);box-shadow:3px 3px 0 var(--shadow);display:flex;align-items:center;justify-content:center;}
+  .actrl .cbtn:active{transform:translate(2px,2px);box-shadow:1px 1px 0 var(--shadow);}
+  .actrl .spd{font-weight:700;letter-spacing:.04em;}
 
   .sec{font-family:'JetBrains Mono',monospace;font-size:12px;letter-spacing:.22em;text-transform:uppercase;color:var(--muted);margin:34px 0 14px;display:flex;align-items:center;gap:12px;}
   .sec::before{content:"";width:13px;height:13px;background:var(--ac);box-shadow:3px 3px 0 var(--shadow);}
@@ -134,9 +138,14 @@
     </div>
 
     <div class="audio">
-      <button class="play" id="play-am" onclick="toggleVO('am')" aria-label="Play Morning Buzz">▶</button>
+      <button class="play" id="play-am" onclick="audioToggle('am')" aria-label="Play Morning Buzz">▶</button>
       <div><span class="a-title">▶ Hit play, we'll read you the Buzz</span>
-      <div class="a-sub" id="stat-am">Tap it and the whole Buzz reads itself to you. No download, no app.</div></div>
+      <div class="a-sub" id="stat-am">Tap it and the whole Buzz reads itself to you. No download, no app.</div>
+      <div class="actrl">
+        <button class="cbtn" onclick="audioSeek('am',-1)" aria-label="Rewind one line">⏮</button>
+        <button class="cbtn" onclick="audioSeek('am',1)" aria-label="Skip one line">⏭</button>
+        <button class="cbtn spd" id="spd-am" onclick="audioSpeed('am')" aria-label="Playback speed">1&times;</button>
+      </div></div>
     </div>
 
     <div class="sec">☕ The 4 stories before the bell</div>
@@ -261,9 +270,14 @@
     </div>
 
     <div class="audio">
-      <button class="play" id="play-pm" onclick="toggleVO('pm')" aria-label="Play Afternoon Buzz">▶</button>
+      <button class="play" id="play-pm" onclick="audioToggle('pm')" aria-label="Play Afternoon Buzz">▶</button>
       <div><span class="a-title">▶ Hit play for the closing rundown</span>
-      <div class="a-sub" id="stat-pm">Tap it and the recap reads itself to you. No download, no app.</div></div>
+      <div class="a-sub" id="stat-pm">Tap it and the recap reads itself to you. No download, no app.</div>
+      <div class="actrl">
+        <button class="cbtn" onclick="audioSeek('pm',-1)" aria-label="Rewind one line">⏮</button>
+        <button class="cbtn" onclick="audioSeek('pm',1)" aria-label="Skip one line">⏭</button>
+        <button class="cbtn spd" id="spd-pm" onclick="audioSpeed('pm')" aria-label="Playback speed">1&times;</button>
+      </div></div>
     </div>
 
     <div class="sec">🍸 How the day actually went</div>
@@ -371,7 +385,7 @@
     document.getElementById('ed-afternoon').style.display = which==='pm'?'block':'none';
     document.getElementById('tab-am').classList.toggle('on', which==='am');
     document.getElementById('tab-pm').classList.toggle('on', which==='pm');
-    stopVO();
+    audioStop();
     window.scrollTo(0,0);
   }
 
@@ -380,33 +394,63 @@
     am: "Rise and shine. It's a brand new week, and opportunity is wide open. Good morning, and welcome to your Morning Buzz from Beitou Roots Research for Monday, June twenty-second, your first session back after the Juneteenth holiday. Take a deep breath, grab your coffee, and let's get you sharp before the bell. Today is yours to win. Let's go. Story one, geopolitics. Mediators Qatar and Pakistan say the U S and Iran agreed on a roadmap to a final deal within sixty days, with technical talks running all week in Switzerland. Vice President Vance called it a good foundation for a successful deal, and more than twelve million barrels crossed the Strait of Hormuz overnight with no shots fired. Less war risk means cheaper oil, with crude sliding back near seventy-five dollars. Story two, the Fed. In Kevin Warsh's first meeting the Fed held rates, but the dot plot flipped hawkish. Nine of eighteen officials now pencil in a hike this year, and some traders eye October. The bar to cut is now very high, so watch the inflation prints, not the press conference. Story three, tech. Micron reports Wednesday after the close, and it's the cleanest read on the A I memory boom. The Street wants gross margin near eighty-one percent, and Micron says its entire twenty twenty-six H B M output is already sold out. The stock popped four percent premarket. Story four, macro. Futures are green as Wall Street cheers the Iran roadmap and shrugs off the hawkish Fed. The Nasdaq jumped over two percent last week and the V I X is calm near seventeen, though fresh China export curbs are the wildcard to watch. And quickly, what's buzzing on fintwit. Intel is up on an Apple chip deal, Robinhood is ripping nearly nine percent, and SpaceX is sliding on a low E S G rating and an Elon clapback. And the big brain, the era of assuming the next move is a cut just ended. The Fed's median dot flipped to a hike, and that quietly reprices tech multiples, small caps, housing, and gold. The bulls' best hope is cheap oil cooling inflation first. That's your Morning Buzz. Now go out there and own this day. We're rooting for you.",
     pm: "Good afternoon, and take a breath, you've earned it. The closing bell has rung, the market is shut for the day, and your workday is almost in the books. This is your Afternoon Buzz from Beitou Roots Research, your quick closing rundown. Stocks shook off the Fed and ripped back green. The Russell two thousand led, up two percent, the Nasdaq up nearly two, the S and P up one percent, the Dow basically flat. Chips went nuclear. Marvell up twelve, SanDisk eleven, Intel ten and a half, as the A I trade broadens way past Nvidia. The small-cap rockets, Butterfly Network up forty-one percent. The lone loser was energy, torched as the U S and Iran signed their deal in France and oil sank. The standout, semis are the new market generals, money rotating into the picks and shovels of A I. On deck, Micron earnings Wednesday and the big May P C E Thursday. The bottom line, cheap oil is quietly doing the Fed's job, the rally is broadening, and the Iran headline is the one thing that flips the script. That's your Afternoon Buzz. Now close the laptop, step away from the screens, and go enjoy your evening, the people and the things that actually matter. The market will be here tomorrow. You earned the night off, so go live a little. We'll catch you bright and early with the Morning Buzz."
   };
-  var speaking=false, current=null;
-  function stopVO(){
-    if('speechSynthesis' in window) window.speechSynthesis.cancel();
-    speaking=false; current=null;
-    ['am','pm'].forEach(function(k){
-      var b=document.getElementById('play-'+k); if(b) b.textContent='▶';
-    });
+  // Teach the voice tricky words for the SPOKEN audio only (visible text is unchanged).
+  function phon(s){
+    return s
+      .replace(/beitou/gi,'Bay-toe')      // company name: "Bay-Toe Roots"
+      .replace(/fintwit/gi,'fin-twit');
   }
-  function pickVoice(){
+  // Split into sentences so we can rewind / fast-forward / change speed mid-read.
+  function toSentences(txt){
+    return (phon(txt).match(/[^.!?]+[.!?]+(\s|$)|\S.+$/g) || [phon(txt)])
+      .map(function(s){return s.trim();}).filter(Boolean);
+  }
+  var A = { which:null, idx:0, playing:false, rate:1, sents:[] };
+  var RATES=[1,1.5,2];
+
+  // Prefer the high-quality / enhanced device (Siri-family) voices; fall back gracefully.
+  function audioVoice(){
     var vs=window.speechSynthesis.getVoices()||[];
-    var pref=['Samantha','Alex','Aaron','Daniel','Google US English'];
-    for(var i=0;i<pref.length;i++){var v=vs.find(function(x){return x.name===pref[i];}); if(v) return v;}
-    return vs.find(function(x){return x.lang==='en-US';})||vs.find(function(x){return x.lang&&x.lang.indexOf('en')===0;})||vs[0];
+    var en=vs.filter(function(x){return (x.lang||'').toLowerCase().indexOf('en')===0;});
+    var pool=en.length?en:vs;
+    var pref=[/siri/i,/samantha.*enhanc/i,/enhanc/i,/premium/i,/^samantha/i,/^alex/i,/^daniel/i,/google us english/i];
+    for(var p=0;p<pref.length;p++){ var v=pool.find(function(x){return pref[p].test(x.name);}); if(v) return v; }
+    return pool.find(function(x){return x.lang==='en-US';})||pool[0];
   }
-  function toggleVO(which){
-    var btn=document.getElementById('play-'+which), st=document.getElementById('stat-'+which);
-    if(!('speechSynthesis' in window)){ st.textContent='Live voice not supported here. Try Safari or Chrome.'; return; }
-    if(speaking && current===which){ stopVO(); st.textContent='Stopped. Tap to start over.'; return; }
-    stopVO();
-    var u=new SpeechSynthesisUtterance(VO[which]);
-    var v=pickVoice(); if(v) u.voice=v; u.rate=1.02; u.pitch=1.0;
-    u.onstart=function(){ st.textContent='Reading you the Buzz...'; };
-    u.onend=function(){ if(current===which){ btn.textContent='▶'; speaking=false; current=null; st.textContent='That’s the Buzz. Tap to replay.'; } };
+  function setPlayIcon(){
+    ['am','pm'].forEach(function(k){ var b=document.getElementById('play-'+k); if(b) b.textContent=(A.playing&&A.which===k)?'⏸':'▶'; });
+  }
+  function statusEl(){ return A.which?document.getElementById('stat-'+A.which):null; }
+  function loadEdition(which){ A.which=which; A.idx=0; A.sents=toSentences(VO[which]); }
+  function speakIdx(){
+    window.speechSynthesis.cancel();
+    if(!A.which||A.idx>=A.sents.length){ A.playing=false; A.idx=0; setPlayIcon(); var s=statusEl(); if(s)s.textContent='That’s the Buzz. Tap play to replay.'; return; }
+    var u=new SpeechSynthesisUtterance(A.sents[A.idx]);
+    var v=audioVoice(); if(v) u.voice=v; u.rate=A.rate; u.pitch=1.0;
+    u.onend=function(){ if(A.playing){ A.idx++; speakIdx(); } };
     window.speechSynthesis.speak(u);
-    speaking=true; current=which; btn.textContent='⏸';
   }
-  if('speechSynthesis' in window){ window.speechSynthesis.onvoiceschanged=function(){}; }
+  function audioToggle(which){
+    var st=document.getElementById('stat-'+which);
+    if(!('speechSynthesis' in window)){ if(st)st.textContent='Live voice not supported here. Try Safari or Chrome.'; return; }
+    if(A.playing && A.which===which){ A.playing=false; window.speechSynthesis.cancel(); setPlayIcon(); if(st)st.textContent='Paused. Tap play to resume.'; return; }
+    if(A.which!==which) loadEdition(which);
+    A.playing=true; setPlayIcon(); if(st)st.textContent='Reading you the Buzz…'; speakIdx();
+  }
+  function audioSeek(which,dir){
+    if(A.which!==which) loadEdition(which);
+    A.idx=Math.min(Math.max(0,A.idx+dir),A.sents.length-1);
+    var st=document.getElementById('stat-'+which);
+    if(st)st.textContent=(dir<0?'⏮ Rewound':'⏭ Skipped')+' — line '+(A.idx+1)+' of '+A.sents.length;
+    if(A.playing) speakIdx();
+  }
+  function audioSpeed(which){
+    A.rate=RATES[(RATES.indexOf(A.rate)+1)%RATES.length];
+    ['am','pm'].forEach(function(k){ var b=document.getElementById('spd-'+k); if(b) b.textContent=A.rate+'×'; });
+    if(A.playing && A.which===which) speakIdx(); // restart current line at the new speed
+  }
+  function audioStop(){ if('speechSynthesis' in window) window.speechSynthesis.cancel(); A.playing=false; A.which=null; A.idx=0; setPlayIcon(); }
+  if('speechSynthesis' in window){ window.speechSynthesis.getVoices(); window.speechSynthesis.onvoiceschanged=function(){}; }
 
   // ---- on load: pick by time (>= 2:30 PM PT shows Afternoon) ----
   show( ptMinutes() >= (14*60+30) ? 'pm' : 'am' );
