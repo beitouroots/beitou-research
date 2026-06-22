@@ -63,6 +63,7 @@
   .actrl .cbtn{font-family:'JetBrains Mono',monospace;font-size:13px;min-width:42px;height:34px;padding:0 12px;cursor:pointer;background:var(--bg);color:var(--ac);border:2px solid var(--ac);box-shadow:3px 3px 0 var(--shadow);display:flex;align-items:center;justify-content:center;}
   .actrl .cbtn:active{transform:translate(2px,2px);box-shadow:1px 1px 0 var(--shadow);}
   .actrl .spd{font-weight:700;letter-spacing:.04em;}
+  .actrl .vsel{font-family:'JetBrains Mono',monospace;font-size:12px;height:34px;padding:0 8px;cursor:pointer;background:var(--bg);color:var(--ac);border:2px solid var(--ac);box-shadow:3px 3px 0 var(--shadow);max-width:180px;}
 
   .sec{font-family:'JetBrains Mono',monospace;font-size:12px;letter-spacing:.22em;text-transform:uppercase;color:var(--muted);margin:34px 0 14px;display:flex;align-items:center;gap:12px;}
   .sec::before{content:"";width:13px;height:13px;background:var(--ac);box-shadow:3px 3px 0 var(--shadow);}
@@ -145,6 +146,7 @@
         <button class="cbtn" onclick="audioSeek('am',-1)" aria-label="Rewind one line">⏮</button>
         <button class="cbtn" onclick="audioSeek('am',1)" aria-label="Skip one line">⏭</button>
         <button class="cbtn spd" id="spd-am" onclick="audioSpeed('am')" aria-label="Playback speed">1&times;</button>
+        <select class="vsel" id="vsel-am" onchange="audioPickVoice(this.value)" aria-label="Voice"></select>
       </div></div>
     </div>
 
@@ -277,6 +279,7 @@
         <button class="cbtn" onclick="audioSeek('pm',-1)" aria-label="Rewind one line">⏮</button>
         <button class="cbtn" onclick="audioSeek('pm',1)" aria-label="Skip one line">⏭</button>
         <button class="cbtn spd" id="spd-pm" onclick="audioSpeed('pm')" aria-label="Playback speed">1&times;</button>
+        <select class="vsel" id="vsel-pm" onchange="audioPickVoice(this.value)" aria-label="Voice"></select>
       </div></div>
     </div>
 
@@ -406,16 +409,39 @@
       .map(function(s){return s.trim();}).filter(Boolean);
   }
   var A = { which:null, idx:0, playing:false, rate:1, sents:[] };
-  var RATES=[1,1.5,2];
+  var RATES=[1,1.25,1.5];
 
-  // Prefer the high-quality / enhanced device (Siri-family) voices; fall back gracefully.
+  // Voice selection: honor the user's saved pick, else auto-prefer enhanced/Siri-family.
+  function savedVoiceName(){ return A.voiceName || (function(){try{return localStorage.getItem('buzz.voice')||'';}catch(e){return '';}})(); }
   function audioVoice(){
     var vs=window.speechSynthesis.getVoices()||[];
+    var want=savedVoiceName();
+    if(want){ var m=vs.find(function(x){return x.name===want;}); if(m) return m; }
     var en=vs.filter(function(x){return (x.lang||'').toLowerCase().indexOf('en')===0;});
     var pool=en.length?en:vs;
     var pref=[/siri/i,/samantha.*enhanc/i,/enhanc/i,/premium/i,/^samantha/i,/^alex/i,/^daniel/i,/google us english/i];
     for(var p=0;p<pref.length;p++){ var v=pool.find(function(x){return pref[p].test(x.name);}); if(v) return v; }
     return pool.find(function(x){return x.lang==='en-US';})||pool[0];
+  }
+  function audioPickVoice(name){
+    A.voiceName=name; try{localStorage.setItem('buzz.voice',name);}catch(e){}
+    ['am','pm'].forEach(function(k){ var s=document.getElementById('vsel-'+k); if(s) s.value=name; });
+    if(A.playing) speakIdx(); // re-read current line in the new voice
+  }
+  function buildVoicePicker(){
+    var vs=window.speechSynthesis.getVoices()||[]; if(!vs.length) return;
+    var en=vs.filter(function(x){return (x.lang||'').toLowerCase().indexOf('en')===0;});
+    var list=(en.length?en:vs).slice().sort(function(a,b){
+      var ea=/enhanc|premium|siri/i.test(a.name)?0:1, eb=/enhanc|premium|siri/i.test(b.name)?0:1;
+      return ea-eb || a.name.localeCompare(b.name);
+    });
+    var cur=savedVoiceName()|| ((audioVoice()||{}).name) || '';
+    var opts=list.map(function(v){
+      var nm=v.name.replace(/</g,'').replace(/"/g,'');
+      var label=nm+(/enhanc|premium|siri/i.test(nm)?' ✦':'');
+      return '<option value="'+nm+'"'+(nm===cur?' selected':'')+'>'+label+'</option>';
+    }).join('');
+    ['am','pm'].forEach(function(k){ var s=document.getElementById('vsel-'+k); if(s){ s.innerHTML=opts; if(cur) s.value=cur; } });
   }
   function setPlayIcon(){
     ['am','pm'].forEach(function(k){ var b=document.getElementById('play-'+k); if(b) b.textContent=(A.playing&&A.which===k)?'⏸':'▶'; });
@@ -450,7 +476,7 @@
     if(A.playing && A.which===which) speakIdx(); // restart current line at the new speed
   }
   function audioStop(){ if('speechSynthesis' in window) window.speechSynthesis.cancel(); A.playing=false; A.which=null; A.idx=0; setPlayIcon(); }
-  if('speechSynthesis' in window){ window.speechSynthesis.getVoices(); window.speechSynthesis.onvoiceschanged=function(){}; }
+  if('speechSynthesis' in window){ window.speechSynthesis.getVoices(); buildVoicePicker(); window.speechSynthesis.onvoiceschanged=buildVoicePicker; setTimeout(buildVoicePicker,600); }
 
   // ---- on load: pick by time (>= 2:30 PM PT shows Afternoon) ----
   show( ptMinutes() >= (14*60+30) ? 'pm' : 'am' );
