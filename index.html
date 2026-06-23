@@ -125,8 +125,12 @@
   body.lightmode .anchor .blist strong{color:#ffffff;}
   body.lightmode .brand .bn b{color:#13864a;}
   body.lightmode .toggle button.on{color:#0a0d13;}
-  body.lightmode h1.title .pop{color:#1b1205;}            /* dark text on the amber highlight */
-  body.lightmode .lanes span:nth-child(even){background:#f6d784;}  /* sunny gold lane stripe */
+  /* SUNSHINE-YELLOW decorative fills in morning mode (text accents stay a readable gold) */
+  body.lightmode h1.title .pop{background:#ffc400;color:#1b1205;}    /* sunny BUZZ highlight, dark text */
+  body.lightmode .lanes span:nth-child(odd){background:#ffc400;}
+  body.lightmode .lanes span:nth-child(even){background:#ffe082;}
+  body.lightmode .audio .play{background:#ffc400;color:#1b1205;}     /* sunny play button, dark icon */
+  body.lightmode .sec::before{background:#ffc400;}
 </style>
 </head>
 <body>
