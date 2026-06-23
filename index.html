@@ -111,9 +111,9 @@
 
   /* ---- LIGHT MODE: the Morning edition reads on a white background; Afternoon stays dark ---- */
   body.lightmode{
-    --bg:#f6f3ec; --grid:#e7e2d6; --panel:#ffffff; --panel-2:#f1ede3;
-    --ink:#14161b; --muted:#6b7280; --line:#1b1d23; --shadow:#16181d;
-    --amber:#b9781a;                       /* deeper amber so the morning accent reads on white */
+    --bg:#fffdf7; --grid:#f1ebda; --panel:#ffffff; --panel-2:#fdf8ee;
+    --ink:#14161b; --muted:#5f6675; --line:#1b1d23; --shadow:#16181d;
+    --amber:#d98a16;                       /* sunnier morning amber, still readable on white */
   }
   body.lightmode .up,body.lightmode .t-chg.up{color:#13864a;}
   body.lightmode .down,body.lightmode .t-chg.down{color:#cf3a20;}
@@ -126,7 +126,7 @@
   body.lightmode .brand .bn b{color:#13864a;}
   body.lightmode .toggle button.on{color:#0a0d13;}
   body.lightmode h1.title .pop{color:#1b1205;}            /* dark text on the amber highlight */
-  body.lightmode .lanes span:nth-child(even){background:#d8d2c4;}
+  body.lightmode .lanes span:nth-child(even){background:#f6d784;}  /* sunny gold lane stripe */
 </style>
 </head>
 <body>
@@ -175,7 +175,7 @@
       </div></div>
     </div>
 
-    <div class="sec">☕ The 4 stories before the bell</div>
+    <div class="sec">☕ Before the bell</div>
 
     <div class="vector c1"><div class="vnum"><div class="cube">01</div></div><div class="vbody">
       <div class="vtag">🕊️ Geopolitics</div>
@@ -504,6 +504,12 @@
     pm: { intro: "Good afternoon, take a breath, the bell has rung and the screens can wait. This is your Afternoon Buzz from Beitou Roots Research, and today the AI chip trade buckled for a second straight day, a global semiconductor rout knocked the Nasdaq lower while the Dow quietly ground out a gain. Here is how it all shook out.", outro: "And that is the day, start to finish, you are caught up and the night is yours. Now shut the laptop, step away from the tape, and go be present with the people who matter, the market will keep without you. Tomorrow brings Micron earnings after the close and core PCE looming Thursday, the two prints that decide whether this chip reset is a dip to buy, so rest up and we will set it all up for you in the morning." }
   };
 
+  // Consistent branded sign-off so the audio never just stops dead; the listener knows it's the end.
+  var SIGNOFF = {
+    am: "And that is the Morning Buzz from Beitou Roots Research. You are all caught up, and we will be back this afternoon.",
+    pm: "And that is the Afternoon Buzz from Beitou Roots Research. You are all caught up, and we will be back bright and early."
+  };
+
   // Teach the voice tricky words for the SPOKEN audio only (visible text is unchanged).
   function phon(s){
     return s
@@ -578,11 +584,12 @@
   function statusEl(){ return A.which?document.getElementById('stat-'+A.which):null; }
   function loadEdition(which){
     A.which=which; A.idx=0;
+    var tail = toSentences(SIGNOFF[which]||'');
     if(A.mode==='full'){
       var b=(BOOK[which]&&BOOK[which].intro&&BOOK[which].intro.trim())?BOOK[which]:dailyBook(which);
-      A.sents = toSentences(b.intro).concat(articleSentences(which)).concat(toSentences(b.outro));
+      A.sents = toSentences(b.intro).concat(articleSentences(which)).concat(toSentences(b.outro)).concat(tail);
     } else {
-      A.sents = toSentences(VO[which]);
+      A.sents = toSentences(VO[which]).concat(tail);
     }
   }
   function audioMode(which){
