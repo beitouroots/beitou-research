@@ -59,6 +59,7 @@ let tileRows = '';
 for (let i = 0; i < tiles.length; i += 3) {
   tileRows += `<tr>${tiles.slice(i, i + 3).map(t => `
     <td align="center" valign="top" width="33%" style="padding:5px;">
+      <a href="${SITE}" style="text-decoration:none;color:inherit;display:block;">
       <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border:2px solid #14161b;background:#ffffff;box-shadow:3px 3px 0 #14161b;">
         <tr><td align="center" style="padding:8px 4px;font-family:'Courier New',monospace;">
           <div style="font-size:10px;letter-spacing:.06em;color:#6b7280;text-transform:uppercase;">${esc(t.lbl)}</div>
@@ -66,6 +67,7 @@ for (let i = 0; i < tiles.length; i += 3) {
           <div style="font-size:11px;font-weight:bold;color:${t.up ? '#13864a' : '#cf3a20'};">${esc(t.chg)}</div>
         </td></tr>
       </table>
+      </a>
     </td>`).join('')}</tr>`;
 }
 
@@ -96,20 +98,18 @@ const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewp
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#eee9dd;"><tr><td align="center" style="padding:18px 10px;">
 <table role="presentation" width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;">
   <tr><td style="font-family:'Courier New',monospace;font-size:11px;letter-spacing:.18em;text-transform:uppercase;color:#14161b;padding:0 0 10px;">
-    <a href="${SITE}" style="text-decoration:none;color:#14161b;"><span style="background:#7B4ADB;color:#fff;padding:3px 7px;font-weight:bold;">$</span> Beitou Roots <span style="color:#13864a;">Research</span></a>
+    <a href="${SITE}" style="background:#7B4ADB;color:#fff;padding:3px 7px;font-weight:bold;text-decoration:none;">$</a><a href="${SITE}" style="text-decoration:none;color:#14161b;"> Beitou Roots <span style="color:#13864a;">Research</span></a>
   </td></tr>
   <tr><td style="background:#ffffff;border:2px solid #14161b;box-shadow:8px 8px 0 #14161b;padding:24px;">
-    <a href="${SITE}" style="display:block;text-decoration:none;color:#14161b;">
-      <div style="font-family:'Courier New',monospace;font-size:11px;letter-spacing:.2em;text-transform:uppercase;color:${ACCENT};margin-bottom:8px;">${isAM ? '☕ Your 6 AM jolt' : '🍸 The closing-bell rundown'}</div>
-      <div style="font-family:'Arial Black',Arial,sans-serif;font-weight:bold;font-size:34px;color:#14161b;text-transform:uppercase;line-height:1;">${NAME} <span style="background:${SUN};padding:0 8px;color:#14161b;">Buzz</span></div>
-      <div style="font-family:'Courier New',monospace;font-size:12px;color:#5f6675;margin-top:12px;">📅 <b style="color:#14161b;">${esc(dateStr)}</b> &nbsp;·&nbsp; as of ${TIME} Pacific</div>
+    <div style="font-family:'Courier New',monospace;font-size:11px;letter-spacing:.2em;text-transform:uppercase;margin-bottom:8px;"><a href="${SITE}" style="text-decoration:none;color:${ACCENT};">${isAM ? '☕ Your 6 AM jolt' : '🍸 The closing-bell rundown'}</a></div>
+    <div style="font-family:'Arial Black',Arial,sans-serif;font-weight:bold;font-size:34px;text-transform:uppercase;line-height:1;"><a href="${SITE}" style="text-decoration:none;color:#14161b;">${NAME} </a><a href="${SITE}" style="background:${SUN};color:#14161b;padding:2px 8px;text-decoration:none;">Buzz</a></div>
+    <div style="font-family:'Courier New',monospace;font-size:12px;margin-top:12px;"><a href="${SITE}" style="text-decoration:none;color:#5f6675;">📅 <b style="color:#14161b;">${esc(dateStr)}</b> &nbsp;·&nbsp; as of ${TIME} Pacific</a></div>
 
-      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:18px 0 4px;">${tileRows}</table>
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:18px 0 4px;">${tileRows}</table>
 
-      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:18px 0 0;"><tr><td align="center">
-        <span style="display:inline-block;background:${BTN_BG};color:${BTN_TX};font-family:Arial,sans-serif;font-weight:bold;font-size:16px;padding:14px 28px;border:2px solid #14161b;box-shadow:4px 4px 0 #14161b;">▶ Play the audio &amp; read it on the web</span>
-      </td></tr></table>
-    </a>
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:18px 0 0;"><tr><td align="center">
+      <a href="${SITE}" style="display:inline-block;background:${BTN_BG};color:${BTN_TX};font-family:Arial,sans-serif;font-weight:bold;font-size:16px;text-decoration:none;padding:14px 28px;border:2px solid #14161b;box-shadow:4px 4px 0 #14161b;">▶ Play the audio &amp; read it on the web</a>
+    </td></tr></table>
   </td></tr>
 
   <tr><td style="padding:22px 0 0;">${cardBlocks}</td></tr>
