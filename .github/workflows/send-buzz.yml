@@ -1,0 +1,41 @@
+name: Send Daily Buzz email
+on:
+  push:
+    branches: [main]
+    paths: ['index.html']
+  workflow_dispatch:
+    inputs:
+      edition:
+        description: 'Which edition to send (am or pm)'
+        required: true
+        default: 'am'
+jobs:
+  send:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Decide edition
+        id: ed
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "edition=${{ github.event.inputs.edition }}" >> "$GITHUB_OUTPUT"; echo "go=yes" >> "$GITHUB_OUTPUT"
+          else
+            MSG=$(git log -1 --pretty=%s); echo "commit: $MSG"
+            if echo "$MSG" | grep -qi 'Morning Buzz'; then echo "edition=am" >> "$GITHUB_OUTPUT"; echo "go=yes" >> "$GITHUB_OUTPUT"
+            elif echo "$MSG" | grep -qi 'Afternoon Buzz'; then echo "edition=pm" >> "$GITHUB_OUTPUT"; echo "go=yes" >> "$GITHUB_OUTPUT"
+            else echo "Not a Buzz commit; skipping."; echo "go=no" >> "$GITHUB_OUTPUT"; fi
+          fi
+      - uses: actions/setup-node@v4
+        if: steps.ed.outputs.go == 'yes'
+        with: { node-version: '20' }
+      - name: Install deps
+        if: steps.ed.outputs.go == 'yes'
+        working-directory: .github/scripts
+        run: npm install --no-audit --no-fund
+      - name: Build + send
+        if: steps.ed.outputs.go == 'yes'
+        working-directory: .github/scripts
+        env:
+          RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
+          BUZZ_SUBSCRIBERS: ${{ secrets.BUZZ_SUBSCRIBERS }}
+        run: node send-buzz.mjs ${{ steps.ed.outputs.edition }}
