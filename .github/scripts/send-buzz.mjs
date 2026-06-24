@@ -14,9 +14,11 @@ const FROM = 'The Daily Buzz <research@beitouroots.com>';
 if (!KEY) { console.error('Missing RESEND_API_KEY'); process.exit(1); }
 if (!SUBS.length) { console.error('No BUZZ_SUBSCRIBERS set; nothing to send.'); process.exit(0); }
 
-// Brand
-const ACCENT = isAM ? '#d98a16' : '#7B4ADB';      // amber-ish / purple
-const SUN    = isAM ? '#ffc400' : '#9b7bf0';       // highlight block
+// Brand (mirrors the website: morning = sunshine yellow fills + gold text; afternoon = violet)
+const ACCENT = isAM ? '#c8870f' : '#7B4ADB';      // readable accent TEXT (gold / violet)
+const SUN    = isAM ? '#ffc400' : '#9b7bf0';       // bright highlight FILL (BUZZ box)
+const BTN_BG = isAM ? '#ffc400' : '#7B4ADB';       // CTA button fill (sunshine / violet)
+const BTN_TX = isAM ? '#14161b' : '#ffffff';       // CTA button text (dark on yellow / white on violet)
 const NAME   = isAM ? 'Morning' : 'Afternoon';
 const TIME   = isAM ? '6 AM' : '2 PM';
 
@@ -94,18 +96,20 @@ const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewp
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#eee9dd;"><tr><td align="center" style="padding:18px 10px;">
 <table role="presentation" width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;">
   <tr><td style="font-family:'Courier New',monospace;font-size:11px;letter-spacing:.18em;text-transform:uppercase;color:#14161b;padding:0 0 10px;">
-    <span style="background:#7B4ADB;color:#fff;padding:3px 7px;font-weight:bold;">$</span> Beitou Roots <span style="color:#13864a;">Research</span>
+    <a href="${SITE}" style="text-decoration:none;color:#14161b;"><span style="background:#7B4ADB;color:#fff;padding:3px 7px;font-weight:bold;">$</span> Beitou Roots <span style="color:#13864a;">Research</span></a>
   </td></tr>
   <tr><td style="background:#ffffff;border:2px solid #14161b;box-shadow:8px 8px 0 #14161b;padding:24px;">
-    <div style="font-family:'Courier New',monospace;font-size:11px;letter-spacing:.2em;text-transform:uppercase;color:${ACCENT};margin-bottom:8px;">${isAM ? '☕ Your 6 AM jolt' : '🍸 The closing-bell rundown'}</div>
-    <div style="font-family:'Arial Black',Arial,sans-serif;font-weight:bold;font-size:34px;color:#14161b;text-transform:uppercase;line-height:1;">${NAME} <span style="background:${SUN};padding:0 8px;">Buzz</span></div>
-    <div style="font-family:'Courier New',monospace;font-size:12px;color:#5f6675;margin-top:12px;">📅 <b style="color:#14161b;">${esc(dateStr)}</b> &nbsp;·&nbsp; as of ${TIME} Pacific</div>
+    <a href="${SITE}" style="display:block;text-decoration:none;color:#14161b;">
+      <div style="font-family:'Courier New',monospace;font-size:11px;letter-spacing:.2em;text-transform:uppercase;color:${ACCENT};margin-bottom:8px;">${isAM ? '☕ Your 6 AM jolt' : '🍸 The closing-bell rundown'}</div>
+      <div style="font-family:'Arial Black',Arial,sans-serif;font-weight:bold;font-size:34px;color:#14161b;text-transform:uppercase;line-height:1;">${NAME} <span style="background:${SUN};padding:0 8px;color:#14161b;">Buzz</span></div>
+      <div style="font-family:'Courier New',monospace;font-size:12px;color:#5f6675;margin-top:12px;">📅 <b style="color:#14161b;">${esc(dateStr)}</b> &nbsp;·&nbsp; as of ${TIME} Pacific</div>
 
-    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:18px 0 4px;">${tileRows}</table>
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:18px 0 4px;">${tileRows}</table>
 
-    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:18px 0;"><tr><td align="center">
-      <a href="${SITE}" style="display:inline-block;background:${ACCENT};color:#ffffff;font-family:Arial,sans-serif;font-weight:bold;font-size:16px;text-decoration:none;padding:14px 28px;border:2px solid #14161b;box-shadow:4px 4px 0 #14161b;">▶ Play the audio &amp; read it on the web</a>
-    </td></tr></table>
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:18px 0 0;"><tr><td align="center">
+        <span style="display:inline-block;background:${BTN_BG};color:${BTN_TX};font-family:Arial,sans-serif;font-weight:bold;font-size:16px;padding:14px 28px;border:2px solid #14161b;box-shadow:4px 4px 0 #14161b;">▶ Play the audio &amp; read it on the web</span>
+      </td></tr></table>
+    </a>
   </td></tr>
 
   <tr><td style="padding:22px 0 0;">${cardBlocks}</td></tr>
