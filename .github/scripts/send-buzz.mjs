@@ -103,7 +103,7 @@ const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewp
   <tr><td style="background:#ffffff;border:2px solid #14161b;box-shadow:8px 8px 0 #14161b;padding:24px;">
     <div style="font-family:'Courier New',monospace;font-size:11px;letter-spacing:.2em;text-transform:uppercase;margin-bottom:8px;"><a href="${SITE}" style="text-decoration:none;color:${ACCENT};">${isAM ? '☕ Your 6 AM jolt' : '🍸 The closing-bell rundown'}</a></div>
     <div style="font-family:'Arial Black',Arial,sans-serif;font-weight:bold;font-size:34px;text-transform:uppercase;line-height:1;"><a href="${SITE}" style="text-decoration:none;color:#14161b;">${NAME} </a><a href="${SITE}" style="background:${SUN};color:#14161b;padding:2px 8px;text-decoration:none;">Buzz</a></div>
-    <div style="font-family:'Courier New',monospace;font-size:12px;margin-top:12px;"><a href="${SITE}" style="text-decoration:none;color:#5f6675;">📅 <b style="color:#14161b;">${esc(dateStr)}</b> &nbsp;·&nbsp; as of ${TIME} Pacific</a></div>
+    <div style="font-family:'Courier New',monospace;font-size:12px;margin-top:12px;"><a href="${SITE}" style="text-decoration:none;color:#5f6675;">📅 <b style="color:#14161b;">${esc(dateStr)}</b> &nbsp;·&nbsp; as of ${TIME} Pacific &nbsp;·&nbsp; ${isAM ? 'pre-market' : 'market close'}</a></div>
 
     <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:18px 0 4px;">${tileRows}</table>
 
