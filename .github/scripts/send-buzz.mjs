@@ -9,7 +9,7 @@ const isAM = EDITION === 'am';
 const KEY = process.env.RESEND_API_KEY;
 const SUBS = (process.env.BUZZ_SUBSCRIBERS || '').split(',').map(s => s.trim()).filter(Boolean);
 const SITE = 'https://research.beitouroots.com';
-const FROM = 'The Daily Buzz <research@beitouroots.com>';
+const FROM = 'The Daily Buzz <support@beitouroots.com>';
 
 if (!KEY) { console.error('Missing RESEND_API_KEY'); process.exit(1); }
 if (!SUBS.length) { console.error('No BUZZ_SUBSCRIBERS set; nothing to send.'); process.exit(0); }
@@ -126,7 +126,7 @@ const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewp
 // ---- send via Resend (one message per subscriber so each can have its own unsubscribe) ----
 let ok = 0, fail = 0;
 for (const to of SUBS) {
-  const unsub = `mailto:research@beitouroots.com?subject=Unsubscribe%20${encodeURIComponent(to)}`;
+  const unsub = `mailto:support@beitouroots.com?subject=Unsubscribe%20${encodeURIComponent(to)}`;
   const body = {
     from: FROM,
     to: [to],
