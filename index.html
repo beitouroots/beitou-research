@@ -174,7 +174,6 @@
         <button class="cbtn" onclick="audioSeek('am',-1)" aria-label="Rewind one line">⏮</button>
         <button class="cbtn" onclick="audioSeek('am',1)" aria-label="Skip one line">⏭</button>
         <button class="cbtn spd" id="spd-am" onclick="audioSpeed('am')" aria-label="Playback speed">1&times;</button>
-        <button class="cbtn mode" id="mode-am" onclick="audioMode('am')" aria-label="Read mode">📖 Full</button>
         <select class="vsel" id="vsel-am" onchange="audioPickVoice(this.value)" aria-label="Voice"></select>
       </div></div>
     </div>
@@ -308,7 +307,6 @@
         <button class="cbtn" onclick="audioSeek('pm',-1)" aria-label="Rewind one line">⏮</button>
         <button class="cbtn" onclick="audioSeek('pm',1)" aria-label="Skip one line">⏭</button>
         <button class="cbtn spd" id="spd-pm" onclick="audioSpeed('pm')" aria-label="Playback speed">1&times;</button>
-        <button class="cbtn mode" id="mode-pm" onclick="audioMode('pm')" aria-label="Read mode">📖 Full</button>
         <select class="vsel" id="vsel-pm" onchange="audioPickVoice(this.value)" aria-label="Voice"></select>
       </div></div>
     </div>
@@ -586,23 +584,31 @@
     ['am','pm'].forEach(function(k){ var b=document.getElementById('play-'+k); if(b) b.textContent=(A.playing&&A.which===k)?'⏸':'▶'; });
   }
   function statusEl(){ return A.which?document.getElementById('stat-'+A.which):null; }
+  // Spoken date/time stamp so a listener instantly knows WHICH edition they're hearing
+  // (reads the published edition's own masthead date, not the listener's clock).
+  function expandDate(d){
+    var days={Mon:'Monday',Tue:'Tuesday',Wed:'Wednesday',Thu:'Thursday',Fri:'Friday',Sat:'Saturday',Sun:'Sunday'};
+    var mons={Jan:'January',Feb:'February',Mar:'March',Apr:'April',May:'May',Jun:'June',Jul:'July',Aug:'August',Sep:'September',Oct:'October',Nov:'November',Dec:'December'};
+    return (d||'').replace(/\b(Mon|Tue|Wed|Thu|Fri|Sat|Sun)\b/g,function(m){return days[m];})
+                  .replace(/\b(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\b/g,function(m){return mons[m];});
+  }
+  function dateStamp(which){
+    var ed=document.getElementById(which==='am'?'ed-morning':'ed-afternoon');
+    var d=ed?((ed.querySelector('.subline b')||{}).textContent||''):'';
+    var greet=which==='am'?'Good morning.':'Good afternoon.';
+    var name=which==='am'?'Morning':'Afternoon';
+    var time=which==='am'?'6 AM':'2 PM';
+    return greet+' This is your '+name+' Buzz for '+expandDate(d)+', as of '+time+' Pacific.';
+  }
   function loadEdition(which){
     A.which=which; A.idx=0;
-    var tail = toSentences(SIGNOFF[which]||'');
-    if(A.mode==='full'){
-      var b=(BOOK[which]&&BOOK[which].intro&&BOOK[which].intro.trim())?BOOK[which]:dailyBook(which);
-      A.sents = toSentences(b.intro).concat(articleSentences(which)).concat(toSentences(b.outro)).concat(tail);
-    } else {
-      A.sents = toSentences(VO[which]).concat(tail);
-    }
-  }
-  function audioMode(which){
-    A.mode = (A.mode==='full') ? 'quick' : 'full';
-    ['am','pm'].forEach(function(k){ var b=document.getElementById('mode-'+k); if(b) b.textContent = (A.mode==='full')?'📖 Full':'⚡ Quick'; });
-    loadEdition(A.which||which);
-    var st=document.getElementById('stat-'+(A.which||which));
-    if(st) st.textContent = (A.mode==='full')?('Full read, every word of stories 1-5 + Big Brain ('+A.sents.length+' lines).'):'Quick read, the tight summary.';
-    if(A.playing) speakIdx();
+    var b=(BOOK[which]&&BOOK[which].intro&&BOOK[which].intro.trim())?BOOK[which]:dailyBook(which);
+    var intro=(b.intro||'').replace(/^\s*good (morning|afternoon)[.,!]?\s*/i,''); // avoid double greeting after the date stamp
+    A.sents = toSentences(dateStamp(which))
+      .concat(toSentences(intro))
+      .concat(articleSentences(which))
+      .concat(toSentences(b.outro))
+      .concat(toSentences(SIGNOFF[which]||''));
   }
   function speakIdx(){
     window.speechSynthesis.cancel();
@@ -655,9 +661,44 @@
     });
   }
 
+  // ---- auto-refresh to the latest edition (GitHub Pages / browser can serve a stale copy) ----
+  // Signature = both editions' masthead date + lead headline. If the live file differs from
+  // what's rendered, the page is stale -> hard-reload to a cache-busted URL so Play is never old.
+  function edSig(scope){ // scope = document or a parsed-HTML helper returning text by selector
+    function pick(id){
+      try{
+        if(scope.querySelector){
+          var e=scope.querySelector('#'+id);
+          if(!e) return '';
+          var d=(e.querySelector('.subline b')||{}).textContent||'';
+          var h=(e.querySelector('.vhead')||{}).textContent||'';
+          return d+'|'+h;
+        }
+      }catch(_){}
+      return '';
+    }
+    return pick('ed-morning')+'||'+pick('ed-afternoon');
+  }
+  async function ensureLatest(){
+    try{
+      var r=await fetch(location.pathname+'?_='+Date.now(),{cache:'no-store'});
+      if(!r.ok) return;
+      var txt=await r.text();
+      var doc=new DOMParser().parseFromString(txt,'text/html');
+      var latest=edSig(doc), cur=edSig(document);
+      if(latest && cur && latest!==cur){
+        var tok=(latest.replace(/[^A-Za-z0-9]/g,'').slice(0,18))||Date.now();
+        location.replace(location.pathname+'?v='+tok);
+      } else if(location.search){
+        history.replaceState(null,'',location.pathname); // tidy the ?v= token once we're current
+      }
+    }catch(e){}
+  }
+
   // ---- on load: pick by time (>= 2:30 PM PT shows Afternoon) ----
   show( ptMinutes() >= (14*60+30) ? 'pm' : 'am' );
   linkifyTiles();
+  ensureLatest();
 </script>
 </body>
 </html>
