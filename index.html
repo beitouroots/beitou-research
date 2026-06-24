@@ -596,9 +596,8 @@
     var ed=document.getElementById(which==='am'?'ed-morning':'ed-afternoon');
     var d=ed?((ed.querySelector('.subline b')||{}).textContent||''):'';
     var greet=which==='am'?'Good morning.':'Good afternoon.';
-    var name=which==='am'?'Morning':'Afternoon';
     var time=which==='am'?'6 AM':'2 PM';
-    return greet+' This is your '+name+' Buzz for '+expandDate(d)+', as of '+time+' Pacific.';
+    return greet+' Today is '+expandDate(d)+', and it is '+time+' Pacific.';
   }
   function loadEdition(which){
     A.which=which; A.idx=0;
