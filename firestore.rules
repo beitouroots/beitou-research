@@ -1,0 +1,47 @@
+rules_version = '2';
+// Beitou Roots Research — "The Daily Buzz" subscriber store.
+// Deploy in: Firebase console -> Firestore Database -> Rules -> paste -> Publish.
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Default: deny everything not explicitly allowed below.
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    function isAdmin() {
+      return request.auth != null
+        && request.auth.token.email == "mel@beitouroots.com"
+        && request.auth.token.email_verified == true;
+    }
+
+    function validEmail(e) {
+      return e is string
+        && e.size() >= 5 && e.size() <= 254
+        && e.matches('^[^@ ]+@[^@ ]+[.][^@ ]+$');
+    }
+
+    match /buzz_subscribers/{id} {
+
+      // PUBLIC SUBSCRIBE: anyone may create a new active subscriber, shape-validated.
+      // No read is granted, so the public can never list or harvest the email set.
+      allow create: if request.resource.data.status == 'active'
+        && validEmail(request.resource.data.email)
+        && request.resource.data.keys().hasOnly(['email','status','source','subscribedAt']);
+
+      // PUBLIC UNSUBSCRIBE (via the unguessable random doc id in the email link):
+      // may flip ONLY status -> 'unsubscribed' (+ unsubscribedAt). Email cannot change.
+      allow update: if request.resource.data.status == 'unsubscribed'
+        && request.resource.data.email == resource.data.email
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status','unsubscribedAt']);
+
+      // SEND JOB (keyless): the read-only buzz-bot user may read the list to email it.
+      // (Org blocks service-account keys, so the GitHub Action signs in as this Firebase user.)
+      allow read: if request.auth != null
+        && request.auth.token.email == "buzz-bot@beitouroots.com";
+
+      // ADMIN (owner, signed in): full read + manage (re-subscribe, delete, etc.).
+      allow read, update, delete: if isAdmin();
+    }
+  }
+}

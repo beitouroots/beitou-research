@@ -2,15 +2,15 @@
 // Runs inside GitHub Actions (which CAN reach api.resend.com, unlike the publish sandbox).
 //
 // Subscribers source (in priority order):
-//   1. Firestore project "Research" — if FIREBASE_SA (service-account JSON) + FIREBASE_PROJECT_ID
-//      are set, send to every doc in buzz_subscribers with status == 'active'. Each gets its own
-//      one-click unsubscribe link (research.beitouroots.com/unsubscribe.html?id=<docId>&e=<email>).
+//   1. Firestore project "Research" — if BUZZ_BOT_EMAIL + BUZZ_BOT_PASSWORD are set, sign in as the
+//      read-only "buzz bot" Firebase user (keyless; org blocks service-account keys) and send to every
+//      buzz_subscribers doc with status == 'active'. Each gets its own one-click unsubscribe link
+//      (research.beitouroots.com/unsubscribe.html?id=<docId>&e=<email>).
 //   2. Fallback: BUZZ_SUBSCRIBERS (comma-separated) with a mailto unsubscribe.
 //
-// Env: RESEND_API_KEY (required), FIREBASE_SA + FIREBASE_PROJECT_ID (optional), BUZZ_SUBSCRIBERS (fallback).
+// Env: RESEND_API_KEY (required), BUZZ_BOT_EMAIL + BUZZ_BOT_PASSWORD (optional, keyless Firestore read), BUZZ_SUBSCRIBERS (fallback).
 // Arg: edition "am" | "pm".
 import { readFileSync } from 'node:fs';
-import { createSign } from 'node:crypto';
 import { parse } from 'node-html-parser';
 
 const EDITION = (process.argv[2] || process.env.EDITION || 'am').toLowerCase();
@@ -22,37 +22,25 @@ const SUPPORT_UNSUB = 'mailto:support@beitouroots.com?subject=Unsubscribe';
 
 if (!KEY) { console.error('Missing RESEND_API_KEY'); process.exit(1); }
 
-// ---------- subscribers ----------
-const b64url = (buf) => Buffer.from(buf).toString('base64').replace(/=/g,'').replace(/\+/g,'-').replace(/\//g,'_');
+// ---------- subscribers (keyless: sign in as the read-only buzz-bot Firebase user) ----------
+// These two are PUBLIC project identifiers (NOT secrets): the web apiKey + projectId.
+const WEB_API_KEY = 'AIzaSyAyeLq_FvnrMLVb41_p0v1PILqW7geGA4M';
+const PROJECT_ID = 'beitou-roots-research';
 
-async function firestoreAccessToken(sa) {
-  const now = Math.floor(Date.now() / 1000);
-  const header = b64url(JSON.stringify({ alg:'RS256', typ:'JWT' }));
-  const claim = b64url(JSON.stringify({
-    iss: sa.client_email,
-    scope: 'https://www.googleapis.com/auth/datastore',
-    aud: 'https://oauth2.googleapis.com/token',
-    iat: now, exp: now + 3600,
-  }));
-  const signer = createSign('RSA-SHA256');
-  signer.update(header + '.' + claim);
-  const sig = b64url(signer.sign(sa.private_key));
-  const assertion = `${header}.${claim}.${sig}`;
-  const r = await fetch('https://oauth2.googleapis.com/token', {
+async function botIdToken(email, password) {
+  const r = await fetch(`https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=${WEB_API_KEY}`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-    body: new URLSearchParams({ grant_type: 'urn:ietf:params:oauth:grant-type:jwt-bearer', assertion }),
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email, password, returnSecureToken: true }),
   });
   const j = await r.json();
-  if (!j.access_token) throw new Error('token exchange failed: ' + JSON.stringify(j));
-  return j.access_token;
+  if (!j.idToken) throw new Error('bot sign-in failed: ' + JSON.stringify(j.error || j));
+  return j.idToken;
 }
 
 async function fromFirestore() {
-  const sa = JSON.parse(process.env.FIREBASE_SA);
-  const pid = process.env.FIREBASE_PROJECT_ID;
-  const token = await firestoreAccessToken(sa);
-  const url = `https://firestore.googleapis.com/v1/projects/${pid}/databases/(default)/documents:runQuery`;
+  const token = await botIdToken(process.env.BUZZ_BOT_EMAIL, process.env.BUZZ_BOT_PASSWORD);
+  const url = `https://firestore.googleapis.com/v1/projects/${PROJECT_ID}/databases/(default)/documents:runQuery`;
   const r = await fetch(url, {
     method: 'POST',
     headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
@@ -70,7 +58,7 @@ async function fromFirestore() {
 }
 
 async function getSubscribers() {
-  if (process.env.FIREBASE_SA && process.env.FIREBASE_PROJECT_ID) {
+  if (process.env.BUZZ_BOT_EMAIL && process.env.BUZZ_BOT_PASSWORD) {
     try { const s = await fromFirestore(); console.log(`Loaded ${s.length} active subscriber(s) from Firestore.`); return s; }
     catch (e) { console.error('Firestore load failed, falling back to BUZZ_SUBSCRIBERS:', e.message); }
   }
