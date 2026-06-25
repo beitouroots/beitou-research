@@ -72,6 +72,15 @@ const seen = new Set();
 const SUBS = RAW.filter(s => (seen.has(s.email) ? false : (seen.add(s.email), true)));
 if (!SUBS.length) { console.error('No subscribers; nothing to send.'); process.exit(0); }
 
+// SAFETY CIRCUIT-BREAKER: refuse to mass-send if the list suddenly balloons (junk/abuse signups,
+// email-bomb). A sane ceiling for early growth; the run fails loudly (red X in Actions) so Mel
+// notices and can purge junk in the admin console. Raise SEND_CAP deliberately as the list grows.
+const SEND_CAP = 1000;
+if (SUBS.length > SEND_CAP) {
+  console.error(`ABORT: ${SUBS.length} active subscribers exceeds SEND_CAP ${SEND_CAP}. Possible abuse/junk signups. NOT sending. Review admin.html; if this is legit growth, raise SEND_CAP in send-buzz.mjs.`);
+  process.exit(1);
+}
+
 // ---------- brand (mirrors the website: morning = sunshine yellow fills + gold text; afternoon = violet) ----------
 const ACCENT = isAM ? '#c8870f' : '#7B4ADB';      // readable accent TEXT (gold / violet)
 const SUN    = isAM ? '#ffc400' : '#9b7bf0';       // bright highlight FILL (BUZZ box)
