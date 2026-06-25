@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex">
+<title>Unsubscribe · The Daily Buzz</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo+Black&family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#0a0d13;--grid:#141923;--panel:#11161f;--panel-2:#0d1119;
+    --ink:#eef2f9;--muted:#8b95a7;--line:#222b3a;
+    --grass:#3ddc84;--ember:#ff6b4a;--purple:#7B4ADB;--shadow:#05070b;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;background:var(--bg);}
+  body{font-family:'Space Grotesk',system-ui,sans-serif;color:var(--ink);min-height:100vh;
+    background-image:linear-gradient(var(--grid) 1px,transparent 1px),linear-gradient(90deg,var(--grid) 1px,transparent 1px);
+    background-size:34px 34px;display:flex;align-items:center;justify-content:center;padding:24px;}
+  .card{max-width:560px;width:100%;background:var(--panel);border:2px solid var(--line);box-shadow:10px 10px 0 var(--shadow);padding:34px 32px 30px;}
+  .brand{display:flex;align-items:center;gap:10px;margin-bottom:22px;}
+  .brand .bee{width:34px;height:34px;background:var(--purple);color:#fff;box-shadow:3px 3px 0 var(--shadow);display:flex;align-items:center;justify-content:center;font-size:18px;}
+  .brand .bn{font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:.2em;text-transform:uppercase;}
+  .brand .bn b{color:var(--grass);}
+  .kick{font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:.22em;text-transform:uppercase;color:var(--muted);margin:0 0 10px;}
+  h1{font-family:'Archivo Black',sans-serif;font-size:clamp(26px,5vw,38px);line-height:1;margin:0 0 14px;text-transform:uppercase;letter-spacing:-.01em;}
+  p{font-size:15px;color:var(--muted);line-height:1.55;margin:0 0 14px;}
+  p b{color:var(--ink);}
+  .email{font-family:'JetBrains Mono',monospace;color:var(--ink);word-break:break-all;}
+  .row{display:flex;flex-wrap:wrap;gap:12px;margin-top:22px;}
+  a.btn,button.btn{font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;cursor:pointer;text-decoration:none;padding:13px 20px;border:2px solid var(--line);box-shadow:4px 4px 0 var(--shadow);display:inline-block;}
+  .btn.primary{background:var(--grass);color:#0a0d13;}
+  .btn.ghost{background:var(--panel-2);color:var(--ink);}
+  .btn:active{transform:translate(2px,2px);box-shadow:2px 2px 0 var(--shadow);}
+  .btn[disabled]{opacity:.5;cursor:default;}
+  .spin{color:var(--muted);}
+  .hide{display:none;}
+</style>
+</head>
+<body>
+  <div class="card">
+    <div class="brand"><div class="bee">🐝</div><div class="bn">BEITOU ROOTS <b>RESEARCH</b></div></div>
+
+    <div id="state-working">
+      <p class="kick">The Daily Buzz</p>
+      <h1>One moment…</h1>
+      <p class="spin">Updating your subscription.</p>
+    </div>
+
+    <div id="state-done" class="hide">
+      <p class="kick">Unsubscribed</p>
+      <h1>You're all set.</h1>
+      <p>We've removed <span class="email" id="done-email">your address</span> from The Daily Buzz. You won't get any more editions. No hard feelings 🐝</p>
+      <p>Changed your mind?</p>
+      <div class="row">
+        <button class="btn primary" id="resub-btn">Re-subscribe</button>
+        <a class="btn ghost" href="https://research.beitouroots.com">Read on the web</a>
+      </div>
+    </div>
+
+    <div id="state-resubbed" class="hide">
+      <p class="kick">Welcome back</p>
+      <h1>You're back in.</h1>
+      <p>We've re-subscribed <span class="email" id="resub-email">your address</span>. Your next Buzz lands at the next drop 🐝</p>
+      <div class="row">
+        <a class="btn ghost" href="https://research.beitouroots.com">Read on the web</a>
+      </div>
+    </div>
+
+    <div id="state-error" class="hide">
+      <p class="kick">Hmm</p>
+      <h1>That link looks off.</h1>
+      <p id="error-detail">We couldn't update this subscription from that link. You can also unsubscribe by replying to any Buzz email, or email <b>support@beitouroots.com</b> and we'll take care of it.</p>
+      <div class="row">
+        <a class="btn ghost" href="https://research.beitouroots.com">Read on the web</a>
+      </div>
+    </div>
+  </div>
+
+<script type="module">
+  import { firebaseConfig, COLLECTION } from './firebase-config.js';
+  import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js';
+  import { getFirestore, doc, updateDoc, collection, addDoc, serverTimestamp } from 'https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js';
+
+  const $ = (id) => document.getElementById(id);
+  const swap = (id) => {
+    ['state-working','state-done','state-resubbed','state-error'].forEach(s => $(s).classList.add('hide'));
+    $(id).classList.remove('hide');
+  };
+
+  const params = new URLSearchParams(location.search);
+  const id = params.get('id');
+  let email = '';
+  try { email = (params.get('e') || '').trim().toLowerCase(); } catch (e) {}
+  const emailLabel = email || 'your address';
+
+  let db = null;
+  try { db = getFirestore(initializeApp(firebaseConfig)); }
+  catch (e) { console.error(e); }
+
+  async function run() {
+    if (!id || !db) {
+      $('error-detail').textContent = "This unsubscribe link is missing some information. You can unsubscribe by replying to any Buzz email, or email support@beitouroots.com and we'll handle it.";
+      swap('state-error');
+      return;
+    }
+    try {
+      await updateDoc(doc(db, COLLECTION, id), { status: 'unsubscribed', unsubscribedAt: serverTimestamp() });
+      $('done-email').textContent = emailLabel;
+      swap('state-done');
+    } catch (e) {
+      console.error(e);
+      swap('state-error');
+    }
+  }
+
+  $('resub-btn').addEventListener('click', async () => {
+    const btn = $('resub-btn');
+    if (!db || !email) {
+      $('error-detail').textContent = "We couldn't re-subscribe you automatically. Head to research.beitouroots.com and use the signup box at the bottom.";
+      swap('state-error');
+      return;
+    }
+    btn.disabled = true; btn.textContent = 'Re-subscribing…';
+    try {
+      await addDoc(collection(db, COLLECTION), { email, status: 'active', source: 'resubscribe', subscribedAt: serverTimestamp() });
+      $('resub-email').textContent = email;
+      swap('state-resubbed');
+    } catch (e) {
+      console.error(e);
+      btn.disabled = false; btn.textContent = 'Re-subscribe';
+      swap('state-error');
+    }
+  });
+
+  run();
+</script>
+</body>
+</html>

@@ -1,20 +1,90 @@
 // Build an email-safe HTML version of a Daily Buzz edition and send it via Resend.
 // Runs inside GitHub Actions (which CAN reach api.resend.com, unlike the publish sandbox).
-// Env: RESEND_API_KEY, BUZZ_SUBSCRIBERS (comma-separated). Arg: edition "am" | "pm".
+//
+// Subscribers source (in priority order):
+//   1. Firestore project "Research" — if FIREBASE_SA (service-account JSON) + FIREBASE_PROJECT_ID
+//      are set, send to every doc in buzz_subscribers with status == 'active'. Each gets its own
+//      one-click unsubscribe link (research.beitouroots.com/unsubscribe.html?id=<docId>&e=<email>).
+//   2. Fallback: BUZZ_SUBSCRIBERS (comma-separated) with a mailto unsubscribe.
+//
+// Env: RESEND_API_KEY (required), FIREBASE_SA + FIREBASE_PROJECT_ID (optional), BUZZ_SUBSCRIBERS (fallback).
+// Arg: edition "am" | "pm".
 import { readFileSync } from 'node:fs';
+import { createSign } from 'node:crypto';
 import { parse } from 'node-html-parser';
 
 const EDITION = (process.argv[2] || process.env.EDITION || 'am').toLowerCase();
 const isAM = EDITION === 'am';
 const KEY = process.env.RESEND_API_KEY;
-const SUBS = (process.env.BUZZ_SUBSCRIBERS || '').split(',').map(s => s.trim()).filter(Boolean);
 const SITE = 'https://research.beitouroots.com';
 const FROM = 'The Daily Buzz <support@beitouroots.com>';
+const SUPPORT_UNSUB = 'mailto:support@beitouroots.com?subject=Unsubscribe';
 
 if (!KEY) { console.error('Missing RESEND_API_KEY'); process.exit(1); }
-if (!SUBS.length) { console.error('No BUZZ_SUBSCRIBERS set; nothing to send.'); process.exit(0); }
 
-// Brand (mirrors the website: morning = sunshine yellow fills + gold text; afternoon = violet)
+// ---------- subscribers ----------
+const b64url = (buf) => Buffer.from(buf).toString('base64').replace(/=/g,'').replace(/\+/g,'-').replace(/\//g,'_');
+
+async function firestoreAccessToken(sa) {
+  const now = Math.floor(Date.now() / 1000);
+  const header = b64url(JSON.stringify({ alg:'RS256', typ:'JWT' }));
+  const claim = b64url(JSON.stringify({
+    iss: sa.client_email,
+    scope: 'https://www.googleapis.com/auth/datastore',
+    aud: 'https://oauth2.googleapis.com/token',
+    iat: now, exp: now + 3600,
+  }));
+  const signer = createSign('RSA-SHA256');
+  signer.update(header + '.' + claim);
+  const sig = b64url(signer.sign(sa.private_key));
+  const assertion = `${header}.${claim}.${sig}`;
+  const r = await fetch('https://oauth2.googleapis.com/token', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: new URLSearchParams({ grant_type: 'urn:ietf:params:oauth:grant-type:jwt-bearer', assertion }),
+  });
+  const j = await r.json();
+  if (!j.access_token) throw new Error('token exchange failed: ' + JSON.stringify(j));
+  return j.access_token;
+}
+
+async function fromFirestore() {
+  const sa = JSON.parse(process.env.FIREBASE_SA);
+  const pid = process.env.FIREBASE_PROJECT_ID;
+  const token = await firestoreAccessToken(sa);
+  const url = `https://firestore.googleapis.com/v1/projects/${pid}/databases/(default)/documents:runQuery`;
+  const r = await fetch(url, {
+    method: 'POST',
+    headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ structuredQuery: {
+      from: [{ collectionId: 'buzz_subscribers' }],
+      where: { fieldFilter: { field: { fieldPath: 'status' }, op: 'EQUAL', value: { stringValue: 'active' } } },
+    }}),
+  });
+  if (!r.ok) throw new Error('Firestore query failed: ' + r.status + ' ' + await r.text());
+  const out = await r.json();
+  return (out || []).filter(x => x.document).map(x => ({
+    id: x.document.name.split('/').pop(),
+    email: ((x.document.fields?.email?.stringValue) || '').trim().toLowerCase(),
+  })).filter(s => s.email);
+}
+
+async function getSubscribers() {
+  if (process.env.FIREBASE_SA && process.env.FIREBASE_PROJECT_ID) {
+    try { const s = await fromFirestore(); console.log(`Loaded ${s.length} active subscriber(s) from Firestore.`); return s; }
+    catch (e) { console.error('Firestore load failed, falling back to BUZZ_SUBSCRIBERS:', e.message); }
+  }
+  const list = (process.env.BUZZ_SUBSCRIBERS || '').split(',').map(s => s.trim().toLowerCase()).filter(Boolean);
+  return list.map(email => ({ id: null, email }));
+}
+
+let RAW = await getSubscribers();
+// dedupe by email (first wins)
+const seen = new Set();
+const SUBS = RAW.filter(s => (seen.has(s.email) ? false : (seen.add(s.email), true)));
+if (!SUBS.length) { console.error('No subscribers; nothing to send.'); process.exit(0); }
+
+// ---------- brand (mirrors the website: morning = sunshine yellow fills + gold text; afternoon = violet) ----------
 const ACCENT = isAM ? '#c8870f' : '#7B4ADB';      // readable accent TEXT (gold / violet)
 const SUN    = isAM ? '#ffc400' : '#9b7bf0';       // bright highlight FILL (BUZZ box)
 const BTN_BG = isAM ? '#ffc400' : '#7B4ADB';       // CTA button fill (sunshine / violet)
@@ -48,13 +118,6 @@ const cards = ed.querySelectorAll('.vector, .anchor').map(card => {
 });
 
 // ---- email-safe HTML (tables + inline styles, light background for deliverability) ----
-const tileCells = tiles.map(t => `
-  <td align="center" valign="top" style="padding:8px 6px;border:2px solid #14161b;background:#ffffff;font-family:'Courier New',monospace;">
-    <div style="font-size:10px;letter-spacing:.06em;color:#6b7280;text-transform:uppercase;">${esc(t.lbl)}</div>
-    <div style="font-size:16px;font-weight:bold;color:#14161b;margin:3px 0;">${esc(t.val)}</div>
-    <div style="font-size:11px;font-weight:bold;color:${t.up ? '#13864a' : '#cf3a20'};">${esc(t.chg)}</div>
-  </td>`).join('');
-// chunk tiles 3 per row
 let tileRows = '';
 for (let i = 0; i < tiles.length; i += 3) {
   tileRows += `<tr>${tiles.slice(i, i + 3).map(t => `
@@ -92,7 +155,8 @@ const cardBlocks = cards.map((c, i) => {
 const subject = `${isAM ? '☕' : '🍸'} ${NAME} Buzz — ${dateStr}`;
 const preheader = `Your ${NAME.toLowerCase()} markets readout, as of ${TIME} Pacific.`;
 
-const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
+// {{UNSUB}} is replaced per recipient with their own unsubscribe link.
+const htmlTemplate = `<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
 <body style="margin:0;padding:0;background:#eee9dd;">
 <span style="display:none;max-height:0;overflow:hidden;opacity:0;">${esc(preheader)}</span>
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#eee9dd;"><tr><td align="center" style="padding:18px 10px;">
@@ -123,16 +187,19 @@ const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewp
 </td></tr></table>
 </body></html>`;
 
-// ---- send via Resend (one message per subscriber so each can have its own unsubscribe) ----
+// ---- send via Resend (one message per subscriber so each has its own unsubscribe) ----
 let ok = 0, fail = 0;
-for (const to of SUBS) {
-  const unsub = `mailto:support@beitouroots.com?subject=Unsubscribe%20${encodeURIComponent(to)}`;
+for (const sub of SUBS) {
+  const webUnsub = sub.id ? `${SITE}/unsubscribe.html?id=${encodeURIComponent(sub.id)}&e=${encodeURIComponent(sub.email)}` : null;
+  const clickUnsub = webUnsub || `${SUPPORT_UNSUB}%20${encodeURIComponent(sub.email)}`;
+  // Gmail/Apple "Unsubscribe" header: prefer the one-click web page, always offer the mailto too.
+  const listUnsub = webUnsub ? `<${webUnsub}>, <${SUPPORT_UNSUB}%20${encodeURIComponent(sub.email)}>` : `<${SUPPORT_UNSUB}%20${encodeURIComponent(sub.email)}>`;
   const body = {
     from: FROM,
-    to: [to],
+    to: [sub.email],
     subject,
-    html: html.replace('{{UNSUB}}', unsub),
-    headers: { 'List-Unsubscribe': `<${unsub}>` },
+    html: htmlTemplate.replace('{{UNSUB}}', clickUnsub),
+    headers: { 'List-Unsubscribe': listUnsub },
   };
   try {
     const r = await fetch('https://api.resend.com/emails', {
@@ -140,9 +207,9 @@ for (const to of SUBS) {
       headers: { 'Authorization': `Bearer ${KEY}`, 'Content-Type': 'application/json' },
       body: JSON.stringify(body),
     });
-    if (r.ok) { ok++; console.log('sent ->', to); }
-    else { fail++; console.error('FAILED ->', to, r.status, await r.text()); }
-  } catch (e) { fail++; console.error('ERROR ->', to, e.message); }
+    if (r.ok) { ok++; console.log('sent ->', sub.email); }
+    else { fail++; console.error('FAILED ->', sub.email, r.status, await r.text()); }
+  } catch (e) { fail++; console.error('ERROR ->', sub.email, e.message); }
 }
 console.log(`Done. sent=${ok} failed=${fail} edition=${EDITION} subject="${subject}"`);
 if (fail) process.exit(1);

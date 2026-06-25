@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex">
+<title>Subscribers · Beitou Roots Research</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo+Black&family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#0a0d13;--grid:#141923;--panel:#11161f;--panel-2:#0d1119;
+    --ink:#eef2f9;--muted:#8b95a7;--line:#222b3a;
+    --grass:#3ddc84;--ember:#ff6b4a;--amber:#f6b73c;--purple:#7B4ADB;--shadow:#05070b;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;background:var(--bg);}
+  body{font-family:'Space Grotesk',system-ui,sans-serif;color:var(--ink);
+    background-image:linear-gradient(var(--grid) 1px,transparent 1px),linear-gradient(90deg,var(--grid) 1px,transparent 1px);
+    background-size:34px 34px;padding:0 18px 60px;line-height:1.5;}
+  .wrap{max-width:980px;margin:0 auto;}
+  .topbar{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;padding:20px 0 6px;}
+  .brand{display:flex;align-items:center;gap:10px;}
+  .brand .bee{width:34px;height:34px;background:var(--purple);color:#fff;box-shadow:3px 3px 0 var(--shadow);display:flex;align-items:center;justify-content:center;font-size:18px;}
+  .brand .bn{font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:.2em;text-transform:uppercase;}
+  .brand .bn b{color:var(--grass);}
+  .who{font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--muted);}
+  .who a{color:var(--amber);cursor:pointer;text-decoration:none;margin-left:10px;}
+
+  .mast{background:var(--panel);border:2px solid var(--line);box-shadow:8px 8px 0 var(--shadow);margin-top:14px;padding:24px 26px;}
+  .kick{font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:.24em;color:var(--amber);text-transform:uppercase;margin:0 0 8px;}
+  h1{font-family:'Archivo Black',sans-serif;font-size:clamp(26px,5vw,40px);line-height:1;margin:0;text-transform:uppercase;letter-spacing:-.01em;}
+
+  .stats{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin:18px 0 0;}
+  .stat{background:var(--panel-2);border:2px solid var(--line);box-shadow:4px 4px 0 var(--shadow);padding:14px 16px;}
+  .stat .n{font-family:'Archivo Black',sans-serif;font-size:28px;}
+  .stat .l{font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);margin-top:3px;}
+  .stat.active .n{color:var(--grass);} .stat.unsub .n{color:var(--ember);}
+
+  .bar{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin:22px 0 12px;}
+  .bar input[type=search]{flex:1;min-width:200px;font-family:'JetBrains Mono',monospace;font-size:13px;color:var(--ink);background:var(--panel);border:2px solid var(--line);box-shadow:3px 3px 0 var(--shadow);padding:11px 13px;outline:none;}
+  .bar input[type=search]:focus{border-color:var(--amber);}
+  .bar button{font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;cursor:pointer;background:var(--panel);color:var(--ink);border:2px solid var(--line);box-shadow:3px 3px 0 var(--shadow);padding:11px 16px;}
+  .bar button:active{transform:translate(2px,2px);box-shadow:1px 1px 0 var(--shadow);}
+  .bar button.csv{background:var(--amber);color:#0a0d13;}
+
+  table{width:100%;border-collapse:separate;border-spacing:0;background:var(--panel);border:2px solid var(--line);box-shadow:8px 8px 0 var(--shadow);}
+  thead th{font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);text-align:left;padding:13px 14px;border-bottom:2px solid var(--line);}
+  tbody td{padding:12px 14px;border-bottom:1px solid var(--line);font-size:13.5px;vertical-align:middle;}
+  tbody tr:last-child td{border-bottom:none;}
+  .em{font-family:'JetBrains Mono',monospace;color:var(--ink);word-break:break-all;}
+  .badge{font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;padding:4px 9px;border:1.5px solid var(--line);}
+  .badge.active{color:var(--grass);border-color:var(--grass);}
+  .badge.unsub{color:var(--ember);border-color:var(--ember);}
+  .when{font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--muted);white-space:nowrap;}
+  .act{display:flex;gap:7px;flex-wrap:wrap;}
+  .act button{font-family:'JetBrains Mono',monospace;font-size:11px;cursor:pointer;background:var(--panel-2);color:var(--ink);border:1.5px solid var(--line);padding:6px 10px;}
+  .act button:hover{border-color:var(--amber);}
+  .act button.del:hover{border-color:var(--ember);color:var(--ember);}
+  .empty{padding:40px 14px;text-align:center;color:var(--muted);font-family:'JetBrains Mono',monospace;font-size:13px;}
+
+  .signin{max-width:460px;margin:14vh auto 0;background:var(--panel);border:2px solid var(--line);box-shadow:10px 10px 0 var(--shadow);padding:36px 32px;text-align:center;}
+  .signin h1{font-size:clamp(24px,5vw,34px);margin-bottom:14px;}
+  .signin p{color:var(--muted);font-size:14px;margin:0 0 22px;}
+  .signin button{font-family:'JetBrains Mono',monospace;font-size:14px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;cursor:pointer;background:var(--grass);color:#0a0d13;border:2px solid var(--line);box-shadow:5px 5px 0 var(--shadow);padding:15px 26px;}
+  .signin button:active{transform:translate(2px,2px);box-shadow:3px 3px 0 var(--shadow);}
+  .signin .err{color:var(--ember);font-family:'JetBrains Mono',monospace;font-size:12px;margin-top:18px;}
+  .hide{display:none;}
+</style>
+</head>
+<body>
+
+<!-- SIGN-IN GATE -->
+<div id="gate" class="signin">
+  <div class="brand" style="justify-content:center;margin-bottom:18px;"><div class="bee">🐝</div><div class="bn">BEITOU ROOTS <b>RESEARCH</b></div></div>
+  <h1>Subscribers</h1>
+  <p>Admin console for The Daily Buzz subscriber list. Sign in with the owner Google account.</p>
+  <button id="signin-btn">Sign in with Google</button>
+  <div id="gate-err" class="err"></div>
+</div>
+
+<!-- CONSOLE -->
+<div id="console" class="wrap hide">
+  <div class="topbar">
+    <div class="brand"><div class="bee">🐝</div><div class="bn">BEITOU ROOTS <b>RESEARCH</b></div></div>
+    <div class="who"><span id="who-email"></span><a id="signout">Sign out</a></div>
+  </div>
+
+  <div class="mast">
+    <p class="kick">The Daily Buzz · Admin</p>
+    <h1>Subscribers</h1>
+    <div class="stats">
+      <div class="stat"><div class="n" id="s-total">—</div><div class="l">Total</div></div>
+      <div class="stat active"><div class="n" id="s-active">—</div><div class="l">Active</div></div>
+      <div class="stat unsub"><div class="n" id="s-unsub">—</div><div class="l">Unsubscribed</div></div>
+    </div>
+  </div>
+
+  <div class="bar">
+    <input type="search" id="q" placeholder="Search email…">
+    <button id="refresh">↻ Refresh</button>
+    <button class="csv" id="csv">⤓ Export CSV</button>
+  </div>
+
+  <table>
+    <thead><tr><th>Email</th><th>Status</th><th>Subscribed</th><th>Actions</th></tr></thead>
+    <tbody id="rows"><tr><td colspan="4" class="empty">Loading…</td></tr></tbody>
+  </table>
+</div>
+
+<script type="module">
+  import { firebaseConfig, ADMIN_EMAIL, COLLECTION } from './firebase-config.js';
+  import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js';
+  import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged }
+    from 'https://www.gstatic.com/firebasejs/10.12.5/firebase-auth.js';
+  import { getFirestore, collection, getDocs, query, orderBy, doc, updateDoc, deleteDoc, serverTimestamp }
+    from 'https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js';
+
+  const $ = (id) => document.getElementById(id);
+  const app = initializeApp(firebaseConfig);
+  const auth = getAuth(app);
+  const db = getFirestore(app);
+  const provider = new GoogleAuthProvider();
+
+  let DATA = [];   // [{id,email,status,subscribedAt(Date|null)}]
+
+  // ---- auth ----
+  $('signin-btn').addEventListener('click', async () => {
+    $('gate-err').textContent = '';
+    try { await signInWithPopup(auth, provider); }
+    catch (e) { $('gate-err').textContent = e.code === 'auth/popup-closed-by-user' ? 'Sign-in canceled.' : ('Sign-in failed: ' + (e.code || e.message)); }
+  });
+  $('signout').addEventListener('click', () => signOut(auth));
+
+  onAuthStateChanged(auth, (user) => {
+    if (user && (user.email || '').toLowerCase() === ADMIN_EMAIL.toLowerCase()) {
+      $('gate').classList.add('hide');
+      $('console').classList.remove('hide');
+      $('who-email').textContent = user.email;
+      load();
+    } else if (user) {
+      $('gate-err').textContent = 'That account (' + user.email + ') is not authorized.';
+      $('console').classList.add('hide');
+      $('gate').classList.remove('hide');
+      signOut(auth);
+    } else {
+      $('console').classList.add('hide');
+      $('gate').classList.remove('hide');
+    }
+  });
+
+  // ---- data ----
+  const toDate = (ts) => { try { return ts && ts.toDate ? ts.toDate() : null; } catch (e) { return null; } };
+  const fmt = (d) => d ? d.toLocaleString('en-US', { year:'numeric', month:'short', day:'numeric', hour:'numeric', minute:'2-digit' }) : '—';
+
+  async function load() {
+    $('rows').innerHTML = '<tr><td colspan="4" class="empty">Loading…</td></tr>';
+    try {
+      const snap = await getDocs(query(collection(db, COLLECTION), orderBy('subscribedAt', 'desc')));
+      DATA = snap.docs.map(d => {
+        const x = d.data();
+        return { id: d.id, email: x.email || '', status: x.status || 'active', subscribedAt: toDate(x.subscribedAt) };
+      });
+    } catch (e) {
+      // orderBy fails if any doc lacks subscribedAt; fall back to unordered.
+      try {
+        const snap = await getDocs(collection(db, COLLECTION));
+        DATA = snap.docs.map(d => { const x = d.data(); return { id:d.id, email:x.email||'', status:x.status||'active', subscribedAt: toDate(x.subscribedAt) }; });
+        DATA.sort((a,b) => (b.subscribedAt?.getTime()||0) - (a.subscribedAt?.getTime()||0));
+      } catch (e2) {
+        $('rows').innerHTML = '<tr><td colspan="4" class="empty">Could not load subscribers: ' + (e2.code||e2.message) + '</td></tr>';
+        return;
+      }
+    }
+    render();
+  }
+
+  function render() {
+    const q = $('q').value.trim().toLowerCase();
+    const rows = DATA.filter(r => !q || r.email.toLowerCase().includes(q));
+    const total = DATA.length, active = DATA.filter(r => r.status === 'active').length;
+    $('s-total').textContent = total;
+    $('s-active').textContent = active;
+    $('s-unsub').textContent = total - active;
+
+    if (!rows.length) { $('rows').innerHTML = '<tr><td colspan="4" class="empty">No subscribers' + (q ? ' match "' + q + '"' : ' yet') + '.</td></tr>'; return; }
+
+    $('rows').innerHTML = rows.map(r => {
+      const isActive = r.status === 'active';
+      const toggle = isActive
+        ? `<button data-act="unsub" data-id="${r.id}">Unsubscribe</button>`
+        : `<button data-act="resub" data-id="${r.id}">Re-subscribe</button>`;
+      return `<tr>
+        <td class="em">${escapeHtml(r.email)}</td>
+        <td><span class="badge ${isActive ? 'active' : 'unsub'}">${isActive ? 'Active' : 'Unsubscribed'}</span></td>
+        <td class="when">${fmt(r.subscribedAt)}</td>
+        <td><div class="act">${toggle}<button class="del" data-act="del" data-id="${r.id}" data-em="${escapeHtml(r.email)}">Delete</button></div></td>
+      </tr>`;
+    }).join('');
+  }
+
+  function escapeHtml(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+  // row actions (event delegation)
+  $('rows').addEventListener('click', async (ev) => {
+    const btn = ev.target.closest('button[data-act]');
+    if (!btn) return;
+    const id = btn.getAttribute('data-id'), act = btn.getAttribute('data-act');
+    btn.disabled = true;
+    try {
+      if (act === 'unsub') await updateDoc(doc(db, COLLECTION, id), { status:'unsubscribed', unsubscribedAt: serverTimestamp() });
+      else if (act === 'resub') await updateDoc(doc(db, COLLECTION, id), { status:'active' });
+      else if (act === 'del') {
+        if (!confirm('Permanently delete ' + btn.getAttribute('data-em') + '? This cannot be undone.')) { btn.disabled = false; return; }
+        await deleteDoc(doc(db, COLLECTION, id));
+      }
+      await load();
+    } catch (e) { alert('Action failed: ' + (e.code || e.message)); btn.disabled = false; }
+  });
+
+  $('q').addEventListener('input', render);
+  $('refresh').addEventListener('click', load);
+
+  $('csv').addEventListener('click', () => {
+    const head = 'email,status,subscribed_at\n';
+    const body = DATA.map(r => `${csv(r.email)},${csv(r.status)},${csv(r.subscribedAt ? r.subscribedAt.toISOString() : '')}`).join('\n');
+    const blob = new Blob([head + body], { type:'text/csv' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'buzz-subscribers-' + new Date().toISOString().slice(0,10) + '.csv';
+    a.click();
+    URL.revokeObjectURL(a.href);
+  });
+  function csv(v){ v = String(v ?? ''); return /[",\n]/.test(v) ? '"' + v.replace(/"/g,'""') + '"' : v; }
+</script>
+</body>
+</html>

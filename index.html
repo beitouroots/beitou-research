@@ -406,6 +406,12 @@
   </div>
 </div>
 
+<!-- ============== SUBSCRIBE (persistent; shows under whichever edition is open) ==============
+     PRESERVE THIS BLOCK + the subscribe.js script tag during the daily regen. The signup UI
+     and Firebase logic live in the external file subscribe.js so this stays a 2-line anchor. -->
+<div class="wrap"><div id="buzz-subscribe"></div></div>
+<script type="module" src="./subscribe.js"></script>
+
 <script>
   // ---- time-aware default (America/Los_Angeles) ----
   function ptMinutes(){
