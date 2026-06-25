@@ -38,4 +38,6 @@ jobs:
         env:
           RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
           BUZZ_SUBSCRIBERS: ${{ secrets.BUZZ_SUBSCRIBERS }}
+          BUZZ_BOT_EMAIL: ${{ secrets.BUZZ_BOT_EMAIL }}
+          BUZZ_BOT_PASSWORD: ${{ secrets.BUZZ_BOT_PASSWORD }}
         run: node send-buzz.mjs ${{ steps.ed.outputs.edition }}
