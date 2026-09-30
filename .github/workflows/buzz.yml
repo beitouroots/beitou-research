@@ -23,6 +23,11 @@ on:
         type: choice
         options: [am, pm]
         default: am
+      force:
+        description: 'Generate even if today''s edition is already published'
+        required: false
+        type: boolean
+        default: false
 
 env:
   # ─────────────── CUTOVER SWITCHES ───────────────
@@ -65,20 +70,22 @@ jobs:
           echo "Local Pacific time is now: $PT_NOW"
 
           if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-            echo "edition=${{ github.event.inputs.edition }}" >> "$GITHUB_OUTPUT"
-            echo "go=yes" >> "$GITHUB_OUTPUT"
-            echo "Manual run: generating the '${{ github.event.inputs.edition }}' edition."
-            exit 0
-          fi
-
-          # Pick the edition from the real Pacific time (DST handled by TZ).
-          if   [ "$PT_HM" -ge 0530 ] && [ "$PT_HM" -lt 0900 ]; then ED=am; LABEL="Morning Buzz"
-          elif [ "$PT_HM" -ge 1320 ] && [ "$PT_HM" -lt 1600 ]; then ED=pm; LABEL="Afternoon Buzz"
+            ED="${{ github.event.inputs.edition }}"
+            echo "Manual run requested for the '$ED' edition."
+            if [ "${{ github.event.inputs.force }}" = "true" ]; then
+              echo "edition=$ED" >> "$GITHUB_OUTPUT"; echo "go=yes" >> "$GITHUB_OUTPUT"
+              echo "force=true: generating regardless of what is already published."
+              exit 0
+            fi
+          # Otherwise pick the edition from the real Pacific time (DST handled by TZ).
+          elif [ "$PT_HM" -ge 0530 ] && [ "$PT_HM" -lt 0900 ]; then ED=am
+          elif [ "$PT_HM" -ge 1320 ] && [ "$PT_HM" -lt 1600 ]; then ED=pm
           else
             echo "go=no" >> "$GITHUB_OUTPUT"
             echo "Outside both edition windows (DST twin of a retry slot). Skipping."
             exit 0
           fi
+          LABEL=$( [ "$ED" = "am" ] && echo "Morning Buzz" || echo "Afternoon Buzz" )
 
           # Already published today? Then this is a later retry: do nothing.
           MSGS=$(gh api "repos/${GITHUB_REPOSITORY}/commits?sha=${PUBLISH_BRANCH}&per_page=30" \
