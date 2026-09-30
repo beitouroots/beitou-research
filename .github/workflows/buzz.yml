@@ -7,13 +7,14 @@ name: Daily Buzz
 
 on:
   schedule:
-    # GitHub cron is UTC and does NOT follow daylight saving. Each edition is
-    # therefore scheduled at BOTH its PDT and PST equivalents, and the "gate"
-    # step below drops whichever one is not actually the right local hour.
-    - cron: '36 12 * * 1-5'   # 05:36 PT while PDT (UTC-7)
-    - cron: '36 13 * * 1-5'   # 05:36 PT while PST (UTC-8)
-    - cron: '26 20 * * 1-5'   # 13:26 PT while PDT (UTC-7)
-    - cron: '26 21 * * 1-5'   # 13:26 PT while PST (UTC-8)
+    # GitHub cron is UTC, ignores daylight saving, and is best-effort: runs often
+    # start 10-60 min late and are occasionally dropped. So each edition fires
+    # every 30 min across a window, and the gate below (a) only runs inside the
+    # real Pacific-time window and (b) skips once today's edition is already on
+    # the publish branch. The first firing that works publishes; later ones no-op,
+    # and a failed attempt is retried automatically 30 min later.
+    - cron: '6,36 12-15 * * 1-5'   # morning retries (PT window 05:30-08:59)
+    - cron: '26,56 20-22 * * 1-5'  # afternoon retries (PT window 13:20-15:59)
   workflow_dispatch:
     inputs:
       edition:
@@ -36,6 +37,12 @@ env:
   # Swap to claude-opus-5 if you want more headroom on the writing quality.
   BUZZ_MODEL: claude-sonnet-5-5
 
+# Never run two generations at once; a queued retry waits, then sees the
+# edition already published and skips.
+concurrency:
+  group: daily-buzz
+  cancel-in-progress: false
+
 jobs:
   buzz:
     runs-on: ubuntu-latest
@@ -45,41 +52,45 @@ jobs:
       id-token: write   # the action fetches an OIDC token; without this it fails immediately
 
     steps:
-      # ── 1. Decide which edition, and whether this cron firing is the real one ──
+      # ── 1. Decide which edition, and whether this firing should do anything ──
       - name: Gate on real local time
         id: gate
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           set -euo pipefail
-          PT_HOUR=$(TZ=America/Los_Angeles date +%H)
           PT_NOW=$(TZ=America/Los_Angeles date '+%Y-%m-%d %H:%M %Z')
+          PT_HM=$(TZ=America/Los_Angeles date +%H%M)
+          PT_DATE=$(TZ=America/Los_Angeles date +%F)
           echo "Local Pacific time is now: $PT_NOW"
 
           if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
             echo "edition=${{ github.event.inputs.edition }}" >> "$GITHUB_OUTPUT"
             echo "go=yes" >> "$GITHUB_OUTPUT"
             echo "Manual run: generating the '${{ github.event.inputs.edition }}' edition."
-          else
-            # Decide from WHICH cron fired and the current Pacific UTC offset, not from the
-            # wall-clock hour. GitHub often starts scheduled runs 10-30+ min late; an hour
-            # check would see 06 instead of 05 on a late morning run and skip BOTH firings,
-            # silently losing the edition.
-            SCHED="${{ github.event.schedule }}"
-            PT_OFF=$(TZ=America/Los_Angeles date +%z)   # -0700 (PDT) or -0800 (PST)
-            case "$SCHED" in
-              '36 12 * * 1-5') ED=am; WANT=-0700 ;;
-              '36 13 * * 1-5') ED=am; WANT=-0800 ;;
-              '26 20 * * 1-5') ED=pm; WANT=-0700 ;;
-              '26 21 * * 1-5') ED=pm; WANT=-0800 ;;
-              *) echo "::error::Unrecognised schedule '$SCHED'"; exit 1 ;;
-            esac
-            if [ "$PT_OFF" = "$WANT" ]; then
-              echo "edition=$ED" >> "$GITHUB_OUTPUT"; echo "go=yes" >> "$GITHUB_OUTPUT"
-              echo "Schedule '$SCHED' is the real one for offset $PT_OFF: generating the '$ED' edition (PT hour now $PT_HOUR)."
-            else
-              echo "go=no" >> "$GITHUB_OUTPUT"
-              echo "Schedule '$SCHED' is the daylight-saving duplicate (offset is $PT_OFF, not $WANT). Skipping."
-            fi
+            exit 0
           fi
+
+          # Pick the edition from the real Pacific time (DST handled by TZ).
+          if   [ "$PT_HM" -ge 0530 ] && [ "$PT_HM" -lt 0900 ]; then ED=am; LABEL="Morning Buzz"
+          elif [ "$PT_HM" -ge 1320 ] && [ "$PT_HM" -lt 1600 ]; then ED=pm; LABEL="Afternoon Buzz"
+          else
+            echo "go=no" >> "$GITHUB_OUTPUT"
+            echo "Outside both edition windows (DST twin of a retry slot). Skipping."
+            exit 0
+          fi
+
+          # Already published today? Then this is a later retry: do nothing.
+          MSGS=$(gh api "repos/${GITHUB_REPOSITORY}/commits?sha=${PUBLISH_BRANCH}&per_page=30" \
+                   --jq '.[].commit.message | split("\n")[0]' 2>/dev/null || true)
+          if printf '%s\n' "$MSGS" | grep -qxF "$LABEL $PT_DATE"; then
+            echo "go=no" >> "$GITHUB_OUTPUT"
+            echo "'$LABEL $PT_DATE' is already on $PUBLISH_BRANCH. Skipping."
+            exit 0
+          fi
+
+          echo "edition=$ED" >> "$GITHUB_OUTPUT"; echo "go=yes" >> "$GITHUB_OUTPUT"
+          echo "'$LABEL $PT_DATE' not published yet: generating the '$ED' edition."
 
       # ── 2. Check out the branch we will publish to ──
       - name: Checkout
