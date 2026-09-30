@@ -530,7 +530,23 @@
     return (phon(txt).match(/[^.!?]+[.!?]+(\s|$)|\S.+$/g) || [phon(txt)])
       .map(function(s){return s.trim();}).filter(Boolean);
   }
-  var A = { which:null, idx:0, playing:false, rate:1, sents:[], voiceName:'', mode:'full' };
+  var A = { which:null, idx:0, playing:false, rate:1, sents:[], voiceName:'', mode:'full', gen:0, wd:null };
+
+  // Several speech engines silently DROP a long utterance instead of reading it, which reads as
+  // "the audio just stopped". Split any line over ~220 chars on word boundaries so every
+  // utterance stays short enough to be spoken reliably.
+  function chunkLine(s){
+    s=String(s||'').replace(/\s+/g,' ').trim();
+    if(!s) return [];
+    if(s.length<=220) return [s];
+    var words=s.split(' '), out=[], buf='';
+    for(var i=0;i<words.length;i++){
+      if(buf && (buf.length+1+words[i].length)>220){ out.push(buf); buf=words[i]; }
+      else buf = buf ? buf+' '+words[i] : words[i];
+    }
+    if(buf) out.push(buf);
+    return out;
+  }
   var RATES=[1,1.25,1.5];
 
   // Build the spoken text WORD-FOR-WORD from the on-page article (stories 1-5 + Big Brain).
@@ -570,7 +586,7 @@
   function audioPickVoice(name){
     A.voiceName=name; try{localStorage.setItem('buzz.voice',name);}catch(e){}
     ['am','pm'].forEach(function(k){ var s=document.getElementById('vsel-'+k); if(s) s.value=name; });
-    if(A.playing) speakIdx(); // re-read current line in the new voice
+    if(A.playing) speakIdx(true); // re-read current line in the new voice
   }
   function buildVoicePicker(){
     var vs=window.speechSynthesis.getVoices()||[]; if(!vs.length) return;
@@ -614,36 +630,66 @@
       .concat(toSentences(intro))
       .concat(articleSentences(which))
       .concat(toSentences(b.outro))
-      .concat(toSentences(SIGNOFF[which]||''));
+      .concat(toSentences(SIGNOFF[which]||''))
+      .reduce(function(acc,s){ return acc.concat(chunkLine(s)); },[]); // keep every utterance short
   }
-  function speakIdx(){
-    window.speechSynthesis.cancel();
+  // immediate=true means we are inside a real user gesture (tap/click/change). iOS Safari only
+  // unlocks speech when the FIRST speak() happens in that gesture, so we must not defer it there.
+  function speakIdx(immediate){
+    var syn=window.speechSynthesis;
+    // Only cancel if something is actually queued: a cancel() issued in the same tick as the
+    // first speak() is a known way to wedge the queue on Safari.
+    try{ if(syn.speaking||syn.pending) syn.cancel(); }catch(_){}
+    clearTimeout(A.wd);
     if(!A.which||A.idx>=A.sents.length){ A.playing=false; A.idx=0; setPlayIcon(); var s=statusEl(); if(s)s.textContent='That’s the Buzz. Tap play to replay.'; return; }
+    var gen=++A.gen, done=false;
+    // One-shot hand-off to the next line. Fires on normal end, on ERROR, or if the engine
+    // never starts at all: any of those must keep the read moving instead of killing it.
+    var advance=function(){
+      if(done) return; done=true;
+      clearTimeout(A.wd);
+      if(gen!==A.gen || !A.playing) return;
+      A.idx++; speakIdx();
+    };
     var u=new SpeechSynthesisUtterance(A.sents[A.idx]);
     var v=audioVoice(); if(v) u.voice=v; u.rate=A.rate; u.pitch=1.0;
-    u.onend=function(){ if(A.playing){ A.idx++; speakIdx(); } };
-    window.speechSynthesis.speak(u);
+    u.onend=advance;
+    u.onerror=advance; // CRITICAL: without this a single failed line ends the whole edition
+    var go=function(){
+      if(gen!==A.gen || !A.playing) return;
+      try{
+        if(syn.paused) syn.resume(); // a wedged-paused engine speaks silence otherwise
+        syn.speak(u);
+      }catch(_){ advance(); return; }
+      // If nothing is speaking shortly after we asked, treat the line as lost and move on.
+      A.wd=setTimeout(function(){
+        if(gen!==A.gen || !A.playing) return;
+        if(syn.paused){ try{ syn.resume(); }catch(_){} return; }
+        if(!syn.speaking && !syn.pending) advance();
+      },3500);
+    };
+    if(immediate) go(); else setTimeout(go,60);
   }
   function audioToggle(which){
     var st=document.getElementById('stat-'+which);
     if(!('speechSynthesis' in window)){ if(st)st.textContent='Live voice not supported here. Try Safari or Chrome.'; return; }
     if(A.playing && A.which===which){ A.playing=false; window.speechSynthesis.cancel(); setPlayIcon(); if(st)st.textContent='Paused. Tap play to resume.'; return; }
     if(A.which!==which) loadEdition(which);
-    A.playing=true; setPlayIcon(); if(st)st.textContent='Reading you the Buzz…'; speakIdx();
+    A.playing=true; setPlayIcon(); if(st)st.textContent='Reading you the Buzz…'; speakIdx(true);
   }
   function audioSeek(which,dir){
     if(A.which!==which) loadEdition(which);
     A.idx=Math.min(Math.max(0,A.idx+dir),A.sents.length-1);
     var st=document.getElementById('stat-'+which);
     if(st)st.textContent=(dir<0?'⏮ Rewound':'⏭ Skipped')+': line '+(A.idx+1)+' of '+A.sents.length;
-    if(A.playing) speakIdx();
+    if(A.playing) speakIdx(true);
   }
   function audioSpeed(which){
     A.rate=RATES[(RATES.indexOf(A.rate)+1)%RATES.length];
     ['am','pm'].forEach(function(k){ var b=document.getElementById('spd-'+k); if(b) b.textContent=A.rate+'×'; });
-    if(A.playing && A.which===which) speakIdx(); // restart current line at the new speed
+    if(A.playing && A.which===which) speakIdx(true); // restart current line at the new speed
   }
-  function audioStop(){ if('speechSynthesis' in window) window.speechSynthesis.cancel(); A.playing=false; A.which=null; A.idx=0; setPlayIcon(); }
+  function audioStop(){ if('speechSynthesis' in window) window.speechSynthesis.cancel(); clearTimeout(A.wd); A.gen++; A.playing=false; A.which=null; A.idx=0; setPlayIcon(); }
   if('speechSynthesis' in window){ window.speechSynthesis.getVoices(); buildVoicePicker(); window.speechSynthesis.onvoiceschanged=buildVoicePicker; setTimeout(buildVoicePicker,600); }
 
   // ---- ticker tiles: click to open that market's live StockTwits feed ----
@@ -685,21 +731,41 @@
     }
     return pick('ed-morning')+'||'+pick('ed-afternoon');
   }
-  async function ensureLatest(){
+  // If the masthead selectors ever go missing, edSig returns empty and the stale check would
+  // silently do nothing. Fall back to a text fingerprint so we always have something to compare.
+  function docSig(scope){
+    var s=edSig(scope);
+    if(s.replace(/\|/g,'').trim()) return s;
     try{
-      var r=await fetch(location.pathname+'?_='+Date.now(),{cache:'no-store'});
+      var b=(scope===document?document.body:scope.body);
+      return b?b.textContent.replace(/\s+/g,' ').slice(0,400):'';
+    }catch(_){ return ''; }
+  }
+  async function ensureLatest(){
+    var now=Date.now();
+    if(ensureLatest._busy) return;
+    if(ensureLatest._last && (now-ensureLatest._last)<45000) return; // throttle refocus checks
+    ensureLatest._busy=true; ensureLatest._last=now;
+    try{
+      var r=await fetch(location.pathname+'?_='+now,{cache:'no-store'});
       if(!r.ok) return;
       var txt=await r.text();
       var doc=new DOMParser().parseFromString(txt,'text/html');
-      var latest=edSig(doc), cur=edSig(document);
+      var latest=docSig(doc), cur=docSig(document);
       if(latest && cur && latest!==cur){
-        var tok=(latest.replace(/[^A-Za-z0-9]/g,'').slice(0,18))||Date.now();
+        audioStop(); // never keep reading an edition we are about to replace
+        var tok=(latest.replace(/[^A-Za-z0-9]/g,'').slice(0,18))||String(now);
         location.replace(location.pathname+'?v='+tok);
-      } else if(location.search){
-        history.replaceState(null,'',location.pathname); // tidy the ?v= token once we're current
       }
-    }catch(e){}
+    }catch(e){ /* offline or fetch blocked: keep showing what we already have */ }
+    finally{ ensureLatest._busy=false; }
   }
+  // A tab restored from history, or one returning from the back/forward cache, does NOT re-run
+  // page scripts, which is exactly how a days-old edition stays on screen. Re-check on every
+  // re-show and whenever the tab regains focus.
+  window.addEventListener('pageshow', function(e){ if(e.persisted) ensureLatest(); });
+  document.addEventListener('visibilitychange', function(){ if(!document.hidden) ensureLatest(); });
+  window.addEventListener('focus', function(){ ensureLatest(); });
 
   // ---- on load: pick by time (>= 2:30 PM PT shows Afternoon) ----
   show( ptMinutes() >= (14*60+30) ? 'pm' : 'am' );
