@@ -158,6 +158,8 @@ jobs:
       - name: Commit the edition
         if: steps.gate.outputs.go == 'yes'
         id: commit
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           set -euo pipefail
           ED="${{ steps.gate.outputs.edition }}"
@@ -165,7 +167,11 @@ jobs:
           MSG="$LABEL $(TZ=America/Los_Angeles date +%F)"
           git add index.html
           git commit -m "$MSG"
-          git push origin "HEAD:$PUBLISH_BRANCH"
+          # Push with an explicit token URL. The credentials actions/checkout persists
+          # do not survive to this step (reads still worked because the repo is public,
+          # which masks the problem until the first write), so authenticate directly.
+          git push "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" \
+                   "HEAD:$PUBLISH_BRANCH"
           echo "committed=$MSG" >> "$GITHUB_OUTPUT"
           echo "::notice::Published \"$MSG\" to $PUBLISH_BRANCH"
 
