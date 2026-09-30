@@ -34,7 +34,7 @@ env:
   SEND_EMAIL: 'false'
   # Sonnet keeps quota consumption sane for two research-heavy runs a day.
   # Swap to claude-opus-5 if you want more headroom on the writing quality.
-  BUZZ_MODEL: claude-sonnet-5
+  BUZZ_MODEL: claude-sonnet-5-5
 
 jobs:
   buzz:
@@ -42,6 +42,7 @@ jobs:
     timeout-minutes: 30
     permissions:
       contents: write
+      id-token: write   # the action fetches an OIDC token; without this it fails immediately
 
     steps:
       # ── 1. Decide which edition, and whether this cron firing is the real one ──
@@ -113,9 +114,14 @@ jobs:
         uses: anthropics/claude-code-action@v1
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
-          model: ${{ env.BUZZ_MODEL }}
           prompt: ${{ steps.prompt.outputs.text }}
-          allowed_tools: "Read,Edit,Write,Bash,WebSearch,WebFetch"
+          # v1 replaced the separate `model` and `allowed_tools` inputs with a single
+          # claude_args string passed straight through to the Claude CLI. Passing the
+          # old input names makes the action fail with "Unexpected input(s)".
+          claude_args: |
+            --model ${{ env.BUZZ_MODEL }}
+            --allowedTools Read,Edit,Write,Bash,WebSearch,WebFetch
+            --max-turns 60
 
       # ── 4. Verify before committing anything ──
       - name: Verify the generated page
