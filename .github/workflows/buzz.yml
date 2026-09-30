@@ -1,0 +1,192 @@
+name: Daily Buzz
+
+# Generates the Morning / Afternoon Buzz on GitHub's infrastructure instead of
+# on Mel's Mac. Local Cowork tasks only fire while the app is open, so a 5:36 AM
+# run was routinely deferred until the laptop was next opened. This runs
+# regardless of whether any machine is on.
+
+on:
+  schedule:
+    # GitHub cron is UTC and does NOT follow daylight saving. Each edition is
+    # therefore scheduled at BOTH its PDT and PST equivalents, and the "gate"
+    # step below drops whichever one is not actually the right local hour.
+    - cron: '36 12 * * 1-5'   # 05:36 PT while PDT (UTC-7)
+    - cron: '36 13 * * 1-5'   # 05:36 PT while PST (UTC-8)
+    - cron: '26 20 * * 1-5'   # 13:26 PT while PDT (UTC-7)
+    - cron: '26 21 * * 1-5'   # 13:26 PT while PST (UTC-8)
+  workflow_dispatch:
+    inputs:
+      edition:
+        description: 'Which edition to generate'
+        required: true
+        type: choice
+        options: [am, pm]
+        default: am
+
+env:
+  # ─────────────── CUTOVER SWITCHES ───────────────
+  # PARALLEL RUN (now): writes to buzz-preview, sends no email. The live site and
+  # subscribers are untouched, so this can run safely alongside the Cowork tasks.
+  #
+  # AT CUTOVER: set PUBLISH_BRANCH to 'main' and SEND_EMAIL to 'true',
+  # then disable the local Cowork tasks.
+  PUBLISH_BRANCH: buzz-preview
+  SEND_EMAIL: 'false'
+  # Sonnet keeps quota consumption sane for two research-heavy runs a day.
+  # Swap to claude-opus-5 if you want more headroom on the writing quality.
+  BUZZ_MODEL: claude-sonnet-5
+
+jobs:
+  buzz:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: write
+
+    steps:
+      # ── 1. Decide which edition, and whether this cron firing is the real one ──
+      - name: Gate on real local time
+        id: gate
+        run: |
+          set -euo pipefail
+          PT_HOUR=$(TZ=America/Los_Angeles date +%H)
+          PT_NOW=$(TZ=America/Los_Angeles date '+%Y-%m-%d %H:%M %Z')
+          echo "Local Pacific time is now: $PT_NOW"
+
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "edition=${{ github.event.inputs.edition }}" >> "$GITHUB_OUTPUT"
+            echo "go=yes" >> "$GITHUB_OUTPUT"
+            echo "Manual run: generating the '${{ github.event.inputs.edition }}' edition."
+          elif [ "$PT_HOUR" = "05" ]; then
+            echo "edition=am" >> "$GITHUB_OUTPUT"; echo "go=yes" >> "$GITHUB_OUTPUT"
+            echo "Scheduled run matches 5 AM PT: generating the MORNING edition."
+          elif [ "$PT_HOUR" = "13" ]; then
+            echo "edition=pm" >> "$GITHUB_OUTPUT"; echo "go=yes" >> "$GITHUB_OUTPUT"
+            echo "Scheduled run matches 1 PM PT: generating the AFTERNOON edition."
+          else
+            echo "go=no" >> "$GITHUB_OUTPUT"
+            echo "This firing is the daylight-saving duplicate (PT hour = $PT_HOUR). Skipping."
+          fi
+
+      # ── 2. Check out the branch we will publish to ──
+      - name: Checkout
+        if: steps.gate.outputs.go == 'yes'
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Ensure publish branch exists
+        if: steps.gate.outputs.go == 'yes'
+        run: |
+          set -euo pipefail
+          git config user.name  beitouroots
+          git config user.email mel@beitouroots.com
+          if git ls-remote --exit-code --heads origin "$PUBLISH_BRANCH" >/dev/null 2>&1; then
+            git fetch origin "$PUBLISH_BRANCH"
+            git checkout "$PUBLISH_BRANCH"
+            # Preview branch tracks main's structure so we always edit the current page.
+            if [ "$PUBLISH_BRANCH" != "main" ]; then
+              git checkout origin/main -- index.html
+            fi
+          else
+            git checkout -b "$PUBLISH_BRANCH"
+          fi
+          echo "Publishing to branch: $PUBLISH_BRANCH"
+
+      # ── 3. Generate the edition ──
+      - name: Load prompt
+        if: steps.gate.outputs.go == 'yes'
+        id: prompt
+        run: |
+          set -euo pipefail
+          ED="${{ steps.gate.outputs.edition }}"
+          FILE=".github/prompts/$( [ "$ED" = "am" ] && echo morning-buzz.md || echo afternoon-buzz.md )"
+          echo "Using prompt: $FILE"
+          {
+            echo 'text<<PROMPT_EOF'
+            cat "$FILE"
+            echo 'PROMPT_EOF'
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Generate with Claude Code
+        if: steps.gate.outputs.go == 'yes'
+        uses: anthropics/claude-code-action@v1
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          model: ${{ env.BUZZ_MODEL }}
+          prompt: ${{ steps.prompt.outputs.text }}
+          allowed_tools: "Read,Edit,Write,Bash,WebSearch,WebFetch"
+
+      # ── 4. Verify before committing anything ──
+      - name: Verify the generated page
+        if: steps.gate.outputs.go == 'yes'
+        run: |
+          set -euo pipefail
+          F=index.html
+          fail() { echo "::error::$1"; exit 1; }
+
+          [ -s "$F" ] || fail "index.html is missing or empty"
+          git diff --quiet -- "$F" && fail "index.html was not modified: generation produced nothing"
+
+          # House style and structural invariants (same checks the Cowork task ran).
+          ! grep -q '—\|–' "$F" || fail "em-dash found (house style forbids them)"
+          [ "$(grep -c '<script' "$F")" = "$(grep -c '</script>' "$F")" ] || fail "unbalanced script tags"
+          grep -q 'id="ed-morning"'   "$F" || fail "morning edition missing"
+          grep -q 'id="ed-afternoon"' "$F" || fail "afternoon edition missing"
+          grep -q 'id="buzz-subscribe"' "$F" || fail "subscribe anchor was removed"
+          grep -q 'subscribe.js' "$F" || fail "subscribe.js script tag was removed"
+
+          # The inline page script must actually parse.
+          python3 - "$F" <<'PY'
+          import re,sys,subprocess
+          h=open(sys.argv[1],encoding='utf-8').read()
+          for i,b in enumerate(re.findall(r'<script(?![^>]*\bsrc=)[^>]*>(.*?)</script>', h, re.S)):
+              p=f"/tmp/c{i}.js"; open(p,'w',encoding='utf-8').write(b)
+              r=subprocess.run(["node","--check",p],capture_output=True,text=True)
+              if r.returncode: print("::error::inline script failed to parse\n"+r.stderr[:800]); sys.exit(1)
+          print("inline script parses OK")
+          PY
+          echo "All verification checks passed."
+
+      # ── 5. Commit ──
+      - name: Commit the edition
+        if: steps.gate.outputs.go == 'yes'
+        id: commit
+        run: |
+          set -euo pipefail
+          ED="${{ steps.gate.outputs.edition }}"
+          LABEL=$( [ "$ED" = "am" ] && echo "Morning Buzz" || echo "Afternoon Buzz" )
+          MSG="$LABEL $(TZ=America/Los_Angeles date +%F)"
+          git add index.html
+          git commit -m "$MSG"
+          git push origin "HEAD:$PUBLISH_BRANCH"
+          echo "committed=$MSG" >> "$GITHUB_OUTPUT"
+          echo "::notice::Published \"$MSG\" to $PUBLISH_BRANCH"
+
+      # ── 6. Email (off during the parallel run) ──
+      # NOTE: a push made with the default GITHUB_TOKEN does NOT trigger other
+      # workflows, so send-buzz.yml will NOT fire on the commit above. The email
+      # is therefore invoked directly here rather than via its push trigger.
+      - name: Send subscriber email
+        if: steps.gate.outputs.go == 'yes' && env.SEND_EMAIL == 'true'
+        working-directory: .github/scripts
+        env:
+          RESEND_API_KEY:     ${{ secrets.RESEND_API_KEY }}
+          BUZZ_SUBSCRIBERS:   ${{ secrets.BUZZ_SUBSCRIBERS }}
+          BUZZ_BOT_EMAIL:     ${{ secrets.BUZZ_BOT_EMAIL }}
+          BUZZ_BOT_PASSWORD:  ${{ secrets.BUZZ_BOT_PASSWORD }}
+        run: |
+          npm install --no-audit --no-fund
+          node send-buzz.mjs ${{ steps.gate.outputs.edition }}
+
+      - name: Summary
+        if: steps.gate.outputs.go == 'yes'
+        run: |
+          {
+            echo "### Daily Buzz"
+            echo ""
+            echo "- Edition: **${{ steps.gate.outputs.edition }}**"
+            echo "- Branch: \`$PUBLISH_BRANCH\`"
+            echo "- Email sent: \`$SEND_EMAIL\`"
+            echo "- Commit: ${{ steps.commit.outputs.committed }}"
+          } >> "$GITHUB_STEP_SUMMARY"
