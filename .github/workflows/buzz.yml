@@ -58,15 +58,27 @@ jobs:
             echo "edition=${{ github.event.inputs.edition }}" >> "$GITHUB_OUTPUT"
             echo "go=yes" >> "$GITHUB_OUTPUT"
             echo "Manual run: generating the '${{ github.event.inputs.edition }}' edition."
-          elif [ "$PT_HOUR" = "05" ]; then
-            echo "edition=am" >> "$GITHUB_OUTPUT"; echo "go=yes" >> "$GITHUB_OUTPUT"
-            echo "Scheduled run matches 5 AM PT: generating the MORNING edition."
-          elif [ "$PT_HOUR" = "13" ]; then
-            echo "edition=pm" >> "$GITHUB_OUTPUT"; echo "go=yes" >> "$GITHUB_OUTPUT"
-            echo "Scheduled run matches 1 PM PT: generating the AFTERNOON edition."
           else
-            echo "go=no" >> "$GITHUB_OUTPUT"
-            echo "This firing is the daylight-saving duplicate (PT hour = $PT_HOUR). Skipping."
+            # Decide from WHICH cron fired and the current Pacific UTC offset, not from the
+            # wall-clock hour. GitHub often starts scheduled runs 10-30+ min late; an hour
+            # check would see 06 instead of 05 on a late morning run and skip BOTH firings,
+            # silently losing the edition.
+            SCHED="${{ github.event.schedule }}"
+            PT_OFF=$(TZ=America/Los_Angeles date +%z)   # -0700 (PDT) or -0800 (PST)
+            case "$SCHED" in
+              '36 12 * * 1-5') ED=am; WANT=-0700 ;;
+              '36 13 * * 1-5') ED=am; WANT=-0800 ;;
+              '26 20 * * 1-5') ED=pm; WANT=-0700 ;;
+              '26 21 * * 1-5') ED=pm; WANT=-0800 ;;
+              *) echo "::error::Unrecognised schedule '$SCHED'"; exit 1 ;;
+            esac
+            if [ "$PT_OFF" = "$WANT" ]; then
+              echo "edition=$ED" >> "$GITHUB_OUTPUT"; echo "go=yes" >> "$GITHUB_OUTPUT"
+              echo "Schedule '$SCHED' is the real one for offset $PT_OFF: generating the '$ED' edition (PT hour now $PT_HOUR)."
+            else
+              echo "go=no" >> "$GITHUB_OUTPUT"
+              echo "Schedule '$SCHED' is the daylight-saving duplicate (offset is $PT_OFF, not $WANT). Skipping."
+            fi
           fi
 
       # ── 2. Check out the branch we will publish to ──
