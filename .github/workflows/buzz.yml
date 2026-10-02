@@ -7,13 +7,14 @@ name: Daily Buzz
 
 on:
   schedule:
-    # GitHub cron is UTC and does NOT follow daylight saving. Each edition is
-    # therefore scheduled at BOTH its PDT and PST equivalents, and the "gate"
-    # step below drops whichever one is not actually the right local hour.
-    - cron: '36 12 * * 1-5'   # 05:36 PT while PDT (UTC-7)
-    - cron: '36 13 * * 1-5'   # 05:36 PT while PST (UTC-8)
-    - cron: '26 20 * * 1-5'   # 13:26 PT while PDT (UTC-7)
-    - cron: '26 21 * * 1-5'   # 13:26 PT while PST (UTC-8)
+    # GitHub cron is UTC, ignores daylight saving, and is best-effort: runs often
+    # start 10-60 min late and are occasionally dropped. So each edition fires
+    # every 30 min across a window, and the gate below (a) only runs inside the
+    # real Pacific-time window and (b) skips once today's edition is already on
+    # the publish branch. The first firing that works publishes; later ones no-op,
+    # and a failed attempt is retried automatically 30 min later.
+    - cron: '6,36 12-15 * * 1-5'   # morning retries (PT window 05:30-08:59)
+    - cron: '26,56 20-22 * * 1-5'  # afternoon retries (PT window 13:20-15:59)
   workflow_dispatch:
     inputs:
       edition:
@@ -22,19 +23,27 @@ on:
         type: choice
         options: [am, pm]
         default: am
+      force:
+        description: 'Generate even if today''s edition is already published'
+        required: false
+        type: boolean
+        default: false
 
 env:
-  # ─────────────── CUTOVER SWITCHES ───────────────
-  # PARALLEL RUN (now): writes to buzz-preview, sends no email. The live site and
-  # subscribers are untouched, so this can run safely alongside the Cowork tasks.
-  #
-  # AT CUTOVER: set PUBLISH_BRANCH to 'main' and SEND_EMAIL to 'true',
-  # then disable the local Cowork tasks.
-  PUBLISH_BRANCH: buzz-preview
-  SEND_EMAIL: 'false'
+  # ─────────────── LIVE (cut over from the Cowork tasks on 2026-10-01) ───────────────
+  # Publishes to main (research.beitouroots.com) and emails subscribers.
+  # To go back to a dry run: PUBLISH_BRANCH: buzz-preview and SEND_EMAIL: 'false'.
+  PUBLISH_BRANCH: main
+  SEND_EMAIL: 'true'
   # Sonnet keeps quota consumption sane for two research-heavy runs a day.
   # Swap to claude-opus-5 if you want more headroom on the writing quality.
   BUZZ_MODEL: claude-sonnet-5-5
+
+# Never run two generations at once; a queued retry waits, then sees the
+# edition already published and skips.
+concurrency:
+  group: daily-buzz
+  cancel-in-progress: false
 
 jobs:
   buzz:
@@ -42,32 +51,51 @@ jobs:
     timeout-minutes: 30
     permissions:
       contents: write
+      pages: write      # lets the job ask GitHub Pages to rebuild after publishing
       id-token: write   # the action fetches an OIDC token; without this it fails immediately
 
     steps:
-      # ── 1. Decide which edition, and whether this cron firing is the real one ──
+      # ── 1. Decide which edition, and whether this firing should do anything ──
       - name: Gate on real local time
         id: gate
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           set -euo pipefail
-          PT_HOUR=$(TZ=America/Los_Angeles date +%H)
           PT_NOW=$(TZ=America/Los_Angeles date '+%Y-%m-%d %H:%M %Z')
+          PT_HM=$(TZ=America/Los_Angeles date +%H%M)
+          PT_DATE=$(TZ=America/Los_Angeles date +%F)
           echo "Local Pacific time is now: $PT_NOW"
 
           if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-            echo "edition=${{ github.event.inputs.edition }}" >> "$GITHUB_OUTPUT"
-            echo "go=yes" >> "$GITHUB_OUTPUT"
-            echo "Manual run: generating the '${{ github.event.inputs.edition }}' edition."
-          elif [ "$PT_HOUR" = "05" ]; then
-            echo "edition=am" >> "$GITHUB_OUTPUT"; echo "go=yes" >> "$GITHUB_OUTPUT"
-            echo "Scheduled run matches 5 AM PT: generating the MORNING edition."
-          elif [ "$PT_HOUR" = "13" ]; then
-            echo "edition=pm" >> "$GITHUB_OUTPUT"; echo "go=yes" >> "$GITHUB_OUTPUT"
-            echo "Scheduled run matches 1 PM PT: generating the AFTERNOON edition."
+            ED="${{ github.event.inputs.edition }}"
+            echo "Manual run requested for the '$ED' edition."
+            if [ "${{ github.event.inputs.force }}" = "true" ]; then
+              echo "edition=$ED" >> "$GITHUB_OUTPUT"; echo "go=yes" >> "$GITHUB_OUTPUT"
+              echo "force=true: generating regardless of what is already published."
+              exit 0
+            fi
+          # Otherwise pick the edition from the real Pacific time (DST handled by TZ).
+          elif [ "$PT_HM" -ge 0530 ] && [ "$PT_HM" -lt 0900 ]; then ED=am
+          elif [ "$PT_HM" -ge 1320 ] && [ "$PT_HM" -lt 1600 ]; then ED=pm
           else
             echo "go=no" >> "$GITHUB_OUTPUT"
-            echo "This firing is the daylight-saving duplicate (PT hour = $PT_HOUR). Skipping."
+            echo "Outside both edition windows (DST twin of a retry slot). Skipping."
+            exit 0
           fi
+          LABEL=$( [ "$ED" = "am" ] && echo "Morning Buzz" || echo "Afternoon Buzz" )
+
+          # Already published today? Then this is a later retry: do nothing.
+          MSGS=$(gh api "repos/${GITHUB_REPOSITORY}/commits?sha=${PUBLISH_BRANCH}&per_page=30" \
+                   --jq '.[].commit.message | split("\n")[0]' 2>/dev/null || true)
+          if printf '%s\n' "$MSGS" | grep -qxF "$LABEL $PT_DATE"; then
+            echo "go=no" >> "$GITHUB_OUTPUT"
+            echo "'$LABEL $PT_DATE' is already on $PUBLISH_BRANCH. Skipping."
+            exit 0
+          fi
+
+          echo "edition=$ED" >> "$GITHUB_OUTPUT"; echo "go=yes" >> "$GITHUB_OUTPUT"
+          echo "'$LABEL $PT_DATE' not published yet: generating the '$ED' edition."
 
       # ── 2. Check out the branch we will publish to ──
       - name: Checkout
@@ -175,7 +203,16 @@ jobs:
           echo "committed=$MSG" >> "$GITHUB_OUTPUT"
           echo "::notice::Published \"$MSG\" to $PUBLISH_BRANCH"
 
-      # ── 6. Email (off during the parallel run) ──
+      # A push made with GITHUB_TOKEN may not kick off the Pages build on its own,
+      # so ask for one explicitly. Non-fatal: the edition is already committed.
+      - name: Request GitHub Pages rebuild
+        if: steps.gate.outputs.go == 'yes' && env.PUBLISH_BRANCH == 'main'
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh api -X POST "repos/${GITHUB_REPOSITORY}/pages/builds" --jq '.status // .'
+
+      # ── 6. Email subscribers ──
       # NOTE: a push made with the default GITHUB_TOKEN does NOT trigger other
       # workflows, so send-buzz.yml will NOT fire on the commit above. The email
       # is therefore invoked directly here rather than via its push trigger.
