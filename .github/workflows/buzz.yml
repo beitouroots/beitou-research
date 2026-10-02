@@ -30,14 +30,11 @@ on:
         default: false
 
 env:
-  # ─────────────── CUTOVER SWITCHES ───────────────
-  # PARALLEL RUN (now): writes to buzz-preview, sends no email. The live site and
-  # subscribers are untouched, so this can run safely alongside the Cowork tasks.
-  #
-  # AT CUTOVER: set PUBLISH_BRANCH to 'main' and SEND_EMAIL to 'true',
-  # then disable the local Cowork tasks.
-  PUBLISH_BRANCH: buzz-preview
-  SEND_EMAIL: 'false'
+  # ─────────────── LIVE (cut over from the Cowork tasks on 2026-10-01) ───────────────
+  # Publishes to main (research.beitouroots.com) and emails subscribers.
+  # To go back to a dry run: PUBLISH_BRANCH: buzz-preview and SEND_EMAIL: 'false'.
+  PUBLISH_BRANCH: main
+  SEND_EMAIL: 'true'
   # Sonnet keeps quota consumption sane for two research-heavy runs a day.
   # Swap to claude-opus-5 if you want more headroom on the writing quality.
   BUZZ_MODEL: claude-sonnet-5-5
@@ -54,6 +51,7 @@ jobs:
     timeout-minutes: 30
     permissions:
       contents: write
+      pages: write      # lets the job ask GitHub Pages to rebuild after publishing
       id-token: write   # the action fetches an OIDC token; without this it fails immediately
 
     steps:
@@ -205,7 +203,16 @@ jobs:
           echo "committed=$MSG" >> "$GITHUB_OUTPUT"
           echo "::notice::Published \"$MSG\" to $PUBLISH_BRANCH"
 
-      # ── 6. Email (off during the parallel run) ──
+      # A push made with GITHUB_TOKEN may not kick off the Pages build on its own,
+      # so ask for one explicitly. Non-fatal: the edition is already committed.
+      - name: Request GitHub Pages rebuild
+        if: steps.gate.outputs.go == 'yes' && env.PUBLISH_BRANCH == 'main'
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh api -X POST "repos/${GITHUB_REPOSITORY}/pages/builds" --jq '.status // .'
+
+      # ── 6. Email subscribers ──
       # NOTE: a push made with the default GITHUB_TOKEN does NOT trigger other
       # workflows, so send-buzz.yml will NOT fire on the commit above. The email
       # is therefore invoked directly here rather than via its push trigger.
