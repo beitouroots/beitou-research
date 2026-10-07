@@ -528,7 +528,7 @@
     return (phon(txt).match(/[^.!?]+[.!?]+(\s|$)|\S.+$/g) || [phon(txt)])
       .map(function(s){return s.trim();}).filter(Boolean);
   }
-  var A = { which:null, idx:0, playing:false, rate:1, sents:[], voiceName:'', mode:'full', gen:0, wd:null };
+  var A = { which:null, idx:0, playing:false, rate:1, sents:[], voiceName:'', mode:'full', gen:0, wd:null, fails:0, badVoices:{}, noVoice:false };
 
   // Several speech engines silently DROP a long utterance instead of reading it, which reads as
   // "the audio just stopped". Split any line over ~220 chars on word boundaries so every
@@ -573,16 +573,20 @@
   function savedVoiceName(){ return A.voiceName || (function(){try{return localStorage.getItem('buzz.voice')||'';}catch(e){return '';}})(); }
   function audioVoice(){
     var vs=window.speechSynthesis.getVoices()||[];
+    // Skip any voice that already failed this session (e.g. one an iOS update renamed or removed).
+    vs=vs.filter(function(x){return !A.badVoices[x.name];});
     var want=savedVoiceName();
     if(want){ var m=vs.find(function(x){return x.name===want;}); if(m) return m; }
     var en=vs.filter(function(x){return (x.lang||'').toLowerCase().indexOf('en')===0;});
     var pool=en.length?en:vs;
-    var pref=[/siri/i,/samantha.*enhanc/i,/enhanc/i,/premium/i,/^samantha/i,/^alex/i,/^daniel/i,/google us english/i];
+    // Siri voices show up in the list on recent iOS but cannot be driven by web speech: picking one
+    // makes every line fail silently. Never auto-pick them (a listener can still choose one by hand).
+    var pref=[/samantha.*enhanc/i,/enhanc/i,/premium/i,/^samantha/i,/^alex/i,/^daniel/i,/google us english/i];
     for(var p=0;p<pref.length;p++){ var v=pool.find(function(x){return pref[p].test(x.name);}); if(v) return v; }
     return pool.find(function(x){return x.lang==='en-US';})||pool[0];
   }
   function audioPickVoice(name){
-    A.voiceName=name; try{localStorage.setItem('buzz.voice',name);}catch(e){}
+    A.voiceName=name; A.noVoice=false; delete A.badVoices[name]; try{localStorage.setItem('buzz.voice',name);}catch(e){}
     ['am','pm'].forEach(function(k){ var s=document.getElementById('vsel-'+k); if(s) s.value=name; });
     if(A.playing) speakIdx(true); // re-read current line in the new voice
   }
@@ -650,20 +654,47 @@
       A.idx++; speakIdx();
     };
     var u=new SpeechSynthesisUtterance(A.sents[A.idx]);
-    var v=audioVoice(); if(v) u.voice=v; u.rate=A.rate; u.pitch=1.0;
+    var v=(A.noVoice?null:audioVoice()); if(v) u.voice=v; u.rate=A.rate; u.pitch=1.0;
+    // A line that errors or never starts. First suspect the chosen voice: drop it and retry the SAME
+    // line on the system default. Only after that keep the read moving, and if the engine keeps
+    // failing, stop with a visible message instead of racing silently through the whole edition.
+    var fail=function(){
+      if(done) return; done=true;
+      clearTimeout(A.wd);
+      if(gen!==A.gen || !A.playing) return;
+      if(v){
+        A.badVoices[v.name]=1; A.noVoice=true; // finish this listen on the system default voice
+        if(savedVoiceName()===v.name){ A.voiceName=''; try{localStorage.removeItem('buzz.voice');}catch(_){} }
+        speakIdx(); return;
+      }
+      if(!A.fails) A.failFrom=A.idx; // remember where the trouble began
+      A.fails++;
+      if(A.fails>=3){
+        A.playing=false; A.idx=A.failFrom||0; A.fails=0; setPlayIcon(); // retry picks up from there
+        var s=statusEl(); if(s) s.textContent='Audio could not start on this device. Tap play to try again.';
+        return;
+      }
+      A.idx++; speakIdx();
+    };
+    u.onstart=function(){ A.fails=0; };
     u.onend=advance;
-    u.onerror=advance; // CRITICAL: without this a single failed line ends the whole edition
+    // CRITICAL: without this a single failed line ends the whole edition. Our own cancel() also
+    // fires onerror ('interrupted'/'canceled'); the gen check inside advance makes that a no-op.
+    u.onerror=function(e){
+      var code=(e&&e.error)||'';
+      if(code==='interrupted'||code==='canceled') advance(); else fail();
+    };
     var go=function(){
       if(gen!==A.gen || !A.playing) return;
       try{
         if(syn.paused) syn.resume(); // a wedged-paused engine speaks silence otherwise
         syn.speak(u);
-      }catch(_){ advance(); return; }
+      }catch(_){ fail(); return; }
       // If nothing is speaking shortly after we asked, treat the line as lost and move on.
       A.wd=setTimeout(function(){
         if(gen!==A.gen || !A.playing) return;
         if(syn.paused){ try{ syn.resume(); }catch(_){} return; }
-        if(!syn.speaking && !syn.pending) advance();
+        if(!syn.speaking && !syn.pending) fail();
       },3500);
     };
     if(immediate) go(); else setTimeout(go,60);
