@@ -1,0 +1,95 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Buzz Voice Test</title>
+<style>
+  :root{--bg:#14161b;--fg:#f4f1e8;--mut:#9aa0ab;--ac:#ffc400;--ok:#3ecf8e;--bad:#ff6b5a;}
+  body{margin:0;background:var(--bg);color:var(--fg);font:16px/1.45 -apple-system,system-ui,sans-serif;padding:16px;}
+  h1{font-size:20px;margin:0 0 4px} p{margin:6px 0;color:var(--mut)}
+  button{display:block;width:100%;margin:10px 0;padding:14px;font-size:17px;font-weight:600;border:2px solid var(--fg);background:var(--ac);color:#14161b;border-radius:0}
+  button.alt{background:transparent;color:var(--fg)}
+  #info,#log{background:#0c0d10;border:1px solid #2a2d35;padding:10px;font:13px/1.5 ui-monospace,Menlo,monospace;white-space:pre-wrap;word-break:break-word;margin-top:10px}
+  .ok{color:var(--ok)} .bad{color:var(--bad)}
+</style>
+</head>
+<body>
+<h1>Buzz voice test</h1>
+<p>Tap each button below in order, wait a few seconds after each, then screenshot the whole page (scroll if needed) and send it over.</p>
+
+<button id="b1">1. Speak with default voice</button>
+<button id="b2">2. Speak with the voice the Buzz would pick</button>
+<button id="b3" class="alt">3. Play a test beep (checks sound output)</button>
+
+<div id="info">Loading device info…</div>
+<div id="log"></div>
+
+<script>
+  var logEl=document.getElementById('log'), t0=Date.now();
+  function log(msg,cls){
+    var line=document.createElement('div');
+    if(cls) line.className=cls;
+    line.textContent='+'+((Date.now()-t0)/1000).toFixed(1)+'s  '+msg;
+    logEl.appendChild(line);
+  }
+  var syn=window.speechSynthesis;
+  function voices(){ try{ return (syn&&syn.getVoices())||[]; }catch(e){ return []; } }
+  function state(){ return syn ? ('speaking='+syn.speaking+' pending='+syn.pending+' paused='+syn.paused) : 'n/a'; }
+  function info(){
+    var vs=voices(), en=vs.filter(function(v){return /^en/i.test(v.lang||'');});
+    var ua=navigator.userAgent;
+    var inApp=/GSA|FBAN|FBAV|Instagram|Line\/|GoogleApp|CriOS|FxiOS|EdgiOS/.test(ua) ? 'YES (not plain Safari)' : 'no';
+    document.getElementById('info').textContent=
+      'User agent: '+ua+'\n'+
+      'Opened inside another app / non-Safari browser: '+inApp+'\n'+
+      'Home-screen web app: '+(navigator.standalone?'yes':'no')+'\n'+
+      'speechSynthesis available: '+(!!syn)+'\n'+
+      'Voices: '+vs.length+' total, '+en.length+' English\n'+
+      'English voices: '+en.slice(0,25).map(function(v){return v.name+(v.localService===false?' (network)':'')+(v.default?' [default]':'');}).join(', ');
+  }
+  // Same choice the live player makes (Siri excluded), so step 2 reproduces the real path.
+  function buzzVoice(){
+    var vs=voices(), en=vs.filter(function(x){return /^en/i.test(x.lang||'');}), pool=en.length?en:vs;
+    var pref=[/samantha.*enhanc/i,/enhanc/i,/premium/i,/^samantha/i,/^alex/i,/^daniel/i,/google us english/i];
+    for(var p=0;p<pref.length;p++){ var v=pool.find(function(x){return pref[p].test(x.name);}); if(v) return v; }
+    return pool.find(function(x){return x.lang==='en-US';})||pool[0]||null;
+  }
+  function speak(useVoice){
+    if(!syn){ log('speechSynthesis is NOT available in this browser','bad'); return; }
+    var u=new SpeechSynthesisUtterance('This is the Daily Buzz voice test. If you can hear this, speech works.');
+    var v=useVoice?buzzVoice():null;
+    if(v) u.voice=v;
+    log('speak() called, voice='+(v?v.name:'(system default)')+', before: '+state());
+    var started=false;
+    u.onstart=function(){ started=true; log('onstart: speech began','ok'); };
+    u.onend=function(){ log('onend: finished, '+state(), started?'ok':'bad'); };
+    u.onerror=function(e){ log('onerror: '+(e&&e.error||'unknown'),'bad'); };
+    try{ if(syn.speaking||syn.pending) syn.cancel(); if(syn.paused) syn.resume(); syn.speak(u); }
+    catch(e){ log('speak() threw: '+e,'bad'); return; }
+    setTimeout(function(){ log('after 1.5s: '+state()+(started?'':'  (no onstart yet)'), started?null:'bad'); },1500);
+    setTimeout(function(){ if(!started) log('after 5s: speech never started','bad'); },5000);
+  }
+  function beep(){
+    // 0.6s 660Hz WAV built in memory, played through an <audio> element (media playback path).
+    var sr=22050,n=Math.floor(sr*0.6),b=new ArrayBuffer(44+n*2),d=new DataView(b);
+    function s(o,str){for(var i=0;i<str.length;i++)d.setUint8(o+i,str.charCodeAt(i));}
+    s(0,'RIFF');d.setUint32(4,36+n*2,true);s(8,'WAVE');s(12,'fmt ');d.setUint32(16,16,true);d.setUint16(20,1,true);
+    d.setUint16(22,1,true);d.setUint32(24,sr,true);d.setUint32(28,sr*2,true);d.setUint16(32,2,true);d.setUint16(34,16,true);
+    s(36,'data');d.setUint32(40,n*2,true);
+    for(var i=0;i<n;i++)d.setInt16(44+i*2,Math.sin(2*Math.PI*660*i/sr)*12000*Math.min(1,(n-i)/2000),true);
+    var a=new Audio(URL.createObjectURL(new Blob([b],{type:'audio/wav'})));
+    a.onplaying=function(){ log('beep: playing (did you hear it?)','ok'); };
+    a.onerror=function(){ log('beep: audio element error','bad'); };
+    var p=a.play(); if(p&&p.catch) p.catch(function(e){ log('beep: play() rejected: '+e,'bad'); });
+  }
+  document.getElementById('b1').onclick=function(){ speak(false); };
+  document.getElementById('b2').onclick=function(){ speak(true); };
+  document.getElementById('b3').onclick=beep;
+  info();
+  if(syn){ syn.onvoiceschanged=function(){ info(); log('voices loaded: '+voices().length); }; setTimeout(info,800); }
+  log('page loaded, '+state());
+</script>
+</body>
+</html>
