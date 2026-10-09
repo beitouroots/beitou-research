@@ -648,7 +648,7 @@
     // first speak() is a known way to wedge the queue on Safari.
     try{ if(syn.speaking||syn.pending) syn.cancel(); }catch(_){}
     clearTimeout(A.wd);
-    if(!A.which||A.idx>=A.sents.length){ A.playing=false; A.idx=0; setPlayIcon(); var s=statusEl(); if(s)s.textContent='That’s the Buzz. Tap play to replay.'; return; }
+    if(!A.which||A.idx>=A.sents.length){ A.playing=false; A.idx=0; audioRelease(); setPlayIcon(); var s=statusEl(); if(s)s.textContent='That’s the Buzz. Tap play to replay.'; return; }
     var gen=++A.gen, done=false;
     // One-shot hand-off to the next line. Fires on normal end, on ERROR, or if the engine
     // never starts at all: any of those must keep the read moving instead of killing it.
@@ -675,7 +675,7 @@
       if(!A.fails) A.failFrom=A.idx; // remember where the trouble began
       A.fails++;
       if(A.fails>=3){
-        A.playing=false; A.idx=A.failFrom||0; A.fails=0; setPlayIcon(); // retry picks up from there
+        A.playing=false; A.idx=A.failFrom||0; A.fails=0; audioRelease(); setPlayIcon(); // retry picks up from there
         var s=statusEl(); if(s) s.textContent='Audio could not start on this device. Tap play to try again.';
         return;
       }
@@ -704,12 +704,31 @@
     };
     if(immediate) go(); else setTimeout(go,60);
   }
+  // iOS mutes web speech when the ring/silent switch is on, but an HTML <audio> element playing
+  // puts the page in the "media playback" audio mode, which ignores the switch and carries the
+  // speech with it. So while reading, loop a silent clip. Must start inside the play tap.
+  var KEEP=null;
+  function audioUnlock(){
+    try{
+      if(!KEEP){
+        var sr=8000,n=sr,b=new ArrayBuffer(44+n*2),d=new DataView(b); // 1s of 16-bit silence
+        var s=function(o,str){for(var i=0;i<str.length;i++)d.setUint8(o+i,str.charCodeAt(i));};
+        s(0,'RIFF');d.setUint32(4,36+n*2,true);s(8,'WAVE');s(12,'fmt ');d.setUint32(16,16,true);d.setUint16(20,1,true);
+        d.setUint16(22,1,true);d.setUint32(24,sr,true);d.setUint32(28,sr*2,true);d.setUint16(32,2,true);d.setUint16(34,16,true);
+        s(36,'data');d.setUint32(40,n*2,true);
+        KEEP=new Audio(URL.createObjectURL(new Blob([b],{type:'audio/wav'})));
+        KEEP.loop=true; KEEP.setAttribute('playsinline','');
+      }
+      var p=KEEP.play(); if(p&&p.catch) p.catch(function(){});
+    }catch(_){}
+  }
+  function audioRelease(){ try{ if(KEEP) KEEP.pause(); }catch(_){} }
   function audioToggle(which){
     var st=document.getElementById('stat-'+which);
     if(!('speechSynthesis' in window)){ if(st)st.textContent='Live voice not supported here. Try Safari or Chrome.'; return; }
-    if(A.playing && A.which===which){ A.playing=false; window.speechSynthesis.cancel(); setPlayIcon(); if(st)st.textContent='Paused. Tap play to resume.'; return; }
+    if(A.playing && A.which===which){ A.playing=false; window.speechSynthesis.cancel(); audioRelease(); setPlayIcon(); if(st)st.textContent='Paused. Tap play to resume.'; return; }
     if(A.which!==which) loadEdition(which);
-    A.playing=true; setPlayIcon(); if(st)st.textContent='Reading you the Buzz…'; speakIdx(true);
+    A.playing=true; setPlayIcon(); if(st)st.textContent='Reading you the Buzz…'; audioUnlock(); speakIdx(true);
   }
   function audioSeek(which,dir){
     if(A.which!==which) loadEdition(which);
@@ -723,7 +742,7 @@
     ['am','pm'].forEach(function(k){ var b=document.getElementById('spd-'+k); if(b) b.textContent=A.rate+'×'; });
     if(A.playing && A.which===which) speakIdx(true); // restart current line at the new speed
   }
-  function audioStop(){ if('speechSynthesis' in window) window.speechSynthesis.cancel(); clearTimeout(A.wd); A.gen++; A.playing=false; A.which=null; A.idx=0; setPlayIcon(); }
+  function audioStop(){ if('speechSynthesis' in window) window.speechSynthesis.cancel(); clearTimeout(A.wd); audioRelease(); A.gen++; A.playing=false; A.which=null; A.idx=0; setPlayIcon(); }
   if('speechSynthesis' in window){ window.speechSynthesis.getVoices(); buildVoicePicker(); window.speechSynthesis.onvoiceschanged=buildVoicePicker; setTimeout(buildVoicePicker,600); }
 
   // ---- ticker tiles: click to open that market's live StockTwits feed ----
