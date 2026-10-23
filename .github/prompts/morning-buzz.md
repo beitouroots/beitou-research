@@ -20,7 +20,7 @@ STEPS:
 
 4. WRITE the Morning section (`id="ed-morning"`) in the LOCKED voice, IN ORDER: masthead date + tiles, 4 cards (cubes 01-04), the WHAT'S BUZZING card (cube 05), then the "🧠 The Big Brain" anchor. Refresh the `VO.am` string too (OPEN with a motivating kickoff, CLOSE with an upbeat sign-off, quick What's Buzzing mention).
 
-   TILES: 6 masthead tiles showing PRE-MARKET data, with the `📊 Pre-market` label div immediately before `<div class="ticker">`. Labels EXACTLY "S&P 500","Nasdaq","Dow","Russell 2K","10Y UST","WTI","Brent". `.t-chg` = the pre-market / overnight % move, or an allowed milestone phrase. No slang.
+   TILES: 7 masthead tiles (always all 7; never drop one) showing PRE-MARKET data, with the `📊 Pre-market` label div immediately before `<div class="ticker">`. Labels EXACTLY "S&P 500","Nasdaq","Dow","Russell 2K","10Y UST","WTI","Brent". `.t-chg` = the pre-market / overnight % move, or an allowed milestone phrase. No slang.
 
    Section label before the cards must read exactly "☕ Before the bell".
 
@@ -32,7 +32,7 @@ STEPS:
 
    Time-box this: roughly 10 minutes, at most 2 fresh searches per claim, ONE pass. Do not loop back for a second full pass. If a number is still unconfirmed after one fresh check, soften or cut it and move on.
 
-6. FINAL CHECK before you finish: ZERO em-dashes; no stray ~ before precise figures; no curly quotes in JS strings; one `<script>`/`</script>` that parses; BOTH editions still present; 4 cards (01-04) plus 1 `vector cx` (cube 05); the 6 tiles use standard labels with a clean `.t-chg` and the "📊 Pre-market" label above them; `BOOK.am` filled with no `"` inside; `BOOK.pm` unchanged; the subscribe anchor and `./subscribe.js` tag still present.
+6. FINAL CHECK before you finish: ZERO em-dashes; no stray ~ before precise figures; no curly quotes in JS strings; one `<script>`/`</script>` that parses; BOTH editions still present; 4 cards (01-04) plus 1 `vector cx` (cube 05); all 7 tiles use standard labels with a clean `.t-chg` and the "📊 Pre-market" label above them; `BOOK.am` filled with no `"` inside; `BOOK.pm` unchanged; the subscribe anchor and `./subscribe.js` tag still present.
 
 7. Finish by printing a short summary of what you wrote and anything you cut or softened. Do not commit; the workflow handles that.
 
