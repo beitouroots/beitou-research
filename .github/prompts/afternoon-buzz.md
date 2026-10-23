@@ -24,7 +24,7 @@ STEPS:
 
 4. WRITE the Afternoon section (`id="ed-afternoon"`) in the LOCKED voice, IN ORDER: masthead date + tiles, then 4 cards (cubes 01-04) titled exactly 01 "🔔 The Close", 02 "🟢 Winners & 🔴 Losers", 03 "💥 The Standout", 04 "👀 On Deck"; then the WHAT'S BUZZING card (cube 05); then the "🧠 The Big Brain" anchor. Refresh the `VO.pm` string too (OPEN with a wind-down, CLOSE by reminding Mel to step away and enjoy his evening, quick What's Buzzing mention).
 
-   TILES: 6 masthead tiles showing the day's CLOSE. Labels EXACTLY "S&P 500","Nasdaq","Dow","Russell 2K","10Y UST","WTI","Brent". `.t-chg` = closing percentage change, or an allowed milestone phrase (All-Time High, Record High, 52-Week High/Low, N-Month High, Yield Up/Down). No slang.
+   TILES: 7 masthead tiles showing the day's CLOSE (always all 7; never drop one). Labels EXACTLY "S&P 500","Nasdaq","Dow","Russell 2K","10Y UST","WTI","Brent". `.t-chg` = closing percentage change, or an allowed milestone phrase (All-Time High, Record High, 52-Week High/Low, N-Month High, Yield Up/Down). No slang.
 
    Section label before the cards must read exactly "🍸 How the day actually went".
 
@@ -34,7 +34,7 @@ STEPS:
 
 5. SELF-FACT-CHECK PASS: exactly ONE pass, time-boxed (~10 minutes, at most 2 fresh searches per claim, never a second full pass). Switch hats and audit your own draft as a ruthless skeptic. Re-verify with FRESH searches: (a) every ticker CLOSING move on 2+ sources, (b) every corporate event and "why" against a PRIMARY source, catching invented characterizations, (c) every other number and superlative, (d) that any acknowledged-but-unreleased earnings carry NO invented numbers. For each: CONFIRM, FIX, or CUT/SOFTEN. If a number is still unconfirmed after one fresh check, soften it (replace "-6.2%" with "fell") or cut it. Do NOT keep searching the same claim: re-running the same verification is the single biggest way this edition runs long. Fix BOTH the copy AND the matching VO.
 
-6. FINAL CHECK before you finish: ZERO em-dashes; no stray ~ before precise figures; no curly quotes in JS strings; one `<script>`/`</script>` that parses; BOTH editions still present; 4 cards (01-04) plus 1 `vector cx` (cube 05); tiles use standard labels with a clean `.t-chg`; `BOOK.pm` filled with no `"` inside; `BOOK.am` unchanged; the subscribe anchor and `./subscribe.js` tag still present.
+6. FINAL CHECK before you finish: ZERO em-dashes; no stray ~ before precise figures; no curly quotes in JS strings; one `<script>`/`</script>` that parses; BOTH editions still present; 4 cards (01-04) plus 1 `vector cx` (cube 05); all 7 tiles present with standard labels and a clean `.t-chg`; `BOOK.pm` filled with no `"` inside; `BOOK.am` unchanged; the subscribe anchor and `./subscribe.js` tag still present.
 
 7. Finish by printing a short summary of what you wrote, which after-close earnings you acknowledged but did not have numbers for, and anything you cut or softened. Do not commit; the workflow handles that.
 
