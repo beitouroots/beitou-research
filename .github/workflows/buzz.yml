@@ -179,6 +179,12 @@ jobs:
               r=subprocess.run(["node","--check",p],capture_output=True,text=True)
               if r.returncode: print("::error::inline script failed to parse\n"+r.stderr[:800]); sys.exit(1)
           print("inline script parses OK")
+          # Browsers forgive a missing </div>, but the email builder's HTML parser then loses
+          # the whole edition ("Edition not found"), so the email silently fails. Catch it here.
+          body=re.sub(r'<!--.*?-->','',re.sub(r'<script.*?</script>','',h,flags=re.S),flags=re.S)
+          o,c=len(re.findall(r'<div\b',body)),len(re.findall(r'</div>',body))
+          if o!=c: print(f"::error::unbalanced <div> tags ({o} opened, {c} closed)"); sys.exit(1)
+          print("div tags balanced")
           PY
           echo "All verification checks passed."
 
