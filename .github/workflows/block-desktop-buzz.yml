@@ -1,0 +1,46 @@
+name: Undo desktop Buzz publish
+
+# The cloud workflow (buzz.yml) is the only publisher of the Daily Buzz. A leftover
+# scheduled task on Mel's Mac still pushes its own edition straight to main when the
+# laptop is open, committed as mel@beitouroots.com. That overwrote the cloud edition
+# and triggered a duplicate subscriber email (10/14), or raced it (10/22).
+# This workflow reverts any such push so the cloud edition stays live. The email
+# workflow no longer sends on push, so a desktop push never emails anyone.
+# To stop this for good, turn off the Buzz tasks in the Claude desktop app (Cowork).
+
+on:
+  push:
+    branches: [main]
+    paths: ['index.html']
+
+permissions:
+  contents: write
+  pages: write
+
+jobs:
+  revert:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 5
+
+      - name: Revert if this is a desktop Buzz publish
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          EMAIL=$(git log -1 --format=%ce)
+          SUBJ=$(git log -1 --format=%s)
+          echo "Head: $SUBJ (committer $EMAIL)"
+          if [ "$EMAIL" != "mel@beitouroots.com" ] || ! printf '%s' "$SUBJ" | grep -qiE 'buzz'; then
+            echo "Not a desktop Buzz publish. Nothing to do."; exit 0
+          fi
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git revert --no-edit HEAD
+          git commit --amend -m "Undo desktop publish: $SUBJ" -m "Pushed from the Mac's leftover Cowork task; the cloud workflow is the only publisher."
+          # A GITHUB_TOKEN push does not start other workflows, so this cannot loop or email.
+          git push "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" HEAD:main
+          gh api -X POST "repos/${GITHUB_REPOSITORY}/pages/builds" --jq '.status // .' || true
+          echo "::warning::Reverted a desktop Buzz publish ($SUBJ). Turn off the Buzz tasks in the Claude desktop app."
