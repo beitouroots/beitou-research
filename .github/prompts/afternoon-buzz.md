@@ -4,7 +4,7 @@ FIRST, before anything else: read `.github/prompts/project-context.md` in this r
 
 THE FILE YOU EDIT: `index.html` in the root of this repository (your current working directory). Edit it in place. There is no Desktop folder and no publish script here: a later workflow step commits your change automatically. Do NOT run any git commands and do NOT try to publish.
 
-⏱️ TIME DISCIPLINE: the closing prices are final the moment the bell rings at 1 PM PT, so there is no data reason to run long. Do not chase a perfect edition. A clean edition that is slightly thinner always beats a late one.
+⏱️ TIME DISCIPLINE: this run starts around 2:00 PM PT, an hour after the 1 PM PT close, and should be live by about 2:15. Closing prices are final, so there is no data reason to run long. Do not chase a perfect edition. A clean edition that is slightly thinner always beats a late one.
 
 ⛔ STYLE 1: NEVER use em-dashes (— or –) anywhere. Use a colon, comma, or period. Grep and replace before you finish.
 ⛔ STYLE 2 (tilde): do NOT prefix a precise figure with ~ (write "-4.1%" and "$74.30", never "~-4.1%"). Reserve ~ for genuine rounded estimates only, sparingly.
@@ -12,13 +12,16 @@ THE FILE YOU EDIT: `index.html` in the root of this repository (your current wor
 
 🎯 ACCURACY (this product must be 100% factual): for every stock/index/commodity, quote the OFFICIAL CLOSING price/percentage, never an intraday high/low (after-hours moves may be cited separately, labeled after-hours). NAME the ticker; for GOOGL vs GOOG specify the class. For any corporate event, state ONLY facts from a PRIMARY source (company PR / SEC 8-K): real amount, date, parties, stated purpose. NEVER invent a characterization.
 
-⏰ AFTER-HOURS EARNINGS RULE (TIGHT AND BOUNDED): some marquee names report AFTER the close, after this edition goes out. These are an ACKNOWLEDGEMENT, not a research project. Spend at most ONE quick search to identify which big names report after today's close. Name them in the "👀 On Deck" card and in a quick VO line, e.g. "Reporting after the close, after this edition: Micron, Nvidia. We'll cover the reaction in tomorrow's Morning Buzz." THE INSTANT you have the names, move on. NEVER wait for a headline, NEVER poll or re-search for their numbers. Only state numbers for earnings already OUT and verified at the moment you draft.
+⏰ AFTER-THE-BELL EARNINGS RULE: this edition runs about an hour after the close, and most after-close reporters release between 1:05 and 1:30 PM PT, so the marquee ones are usually OUT when you draft. COVER them (they are what readers want from this edition):
+   - For each marquee name that has reported (at most 3, prioritised by size and how much the stock is moving): headline revenue and EPS versus consensus, any guidance change, and the after-hours stock move, explicitly labeled after-hours (e.g. "fell 4% after hours"). Numbers come from the company's own release / investor-relations page / 8-K; the after-hours move from 2 sources. If the earnings call is still in progress, do not characterise what was said on it unless a published report quotes it.
+   - Put them where they belong: the day's biggest after-the-bell story can be the "💥 The Standout" card; otherwise list them in "👀 On Deck" under "Reported after the bell". Give them a line in the VO.
+   - Budget: about 2 searches per name. Names that have NOT reported yet when you draft are name-only ("reporting later tonight: ...; we'll cover the reaction in tomorrow's Morning Buzz"). NEVER wait, poll, or re-search for a release that is not out.
 
 STEPS:
 
 1. Run `date` and establish today's date in America/Los_Angeles.
 
-2. RESEARCH with WebSearch and WebFetch: (a) how the indices CLOSED (S&P 500, Nasdaq, Russell 2000, Dow) with closing % moves, (b) the biggest WINNERS and LOSERS by closing move, (c) the day's standout sector story, or any after-hours earnings already out and verified, (d) ON DECK names per the rule above. Plus the Big Brain bottom line and What's Buzzing. 2-3 distinct sources per claim, and vary your outlets day to day.
+2. RESEARCH with WebSearch and WebFetch: (a) how the indices CLOSED (S&P 500, Nasdaq, Russell 2000, Dow) with closing % moves, (b) the biggest WINNERS and LOSERS by closing move, (c) the day's standout story, which may be an after-the-bell earnings report, (d) after-the-bell earnings per the rule above (reported: cover; not yet reported: name only). Plus the Big Brain bottom line and What's Buzzing. 2-3 distinct sources per claim, and vary your outlets day to day.
 
 3. WHAT'S BUZZING: 3-4 trending tickers (StockTwits trending, altindex.com, swaggystocks, tradestie, Google Trends). Use each ticker's CLOSING daily move, never an intraday extreme and never a social mention-volume percentage.
 
