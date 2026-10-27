@@ -11,8 +11,8 @@ Product: **Beitou Roots Research — "The Daily Buzz"**, a markets newsletter pu
 
 - **Morning Buzz** — 6 AM PT, pre-market setup. Accent: amber, emoji ☕.
 - **Afternoon Buzz** — 2 PM PT, post-market close plus earnings and reactions. Accent: violet, emoji 🍸.
-- Delivery target: verified edition live by **6:15 AM PT** (before the 6:30 PT open) and by **~2:00 PM PT** (2:15 latest).
-- The site is a single **time-aware reader**: it shows Morning Buzz before 2:30 PM PT and Afternoon Buzz after; a ☕/🍸 toggle lets readers switch either way.
+- Runs start at about **6:00 AM PT** and **2:00 PM PT** on weekdays. Delivery target: verified edition live by **~6:05 AM PT** (well before the 6:30 PT open) and by **~2:10 PM PT** (2:15 latest).
+- The site opens on the **newest edition** (Afternoon once today's Afternoon Buzz is published, Morning once the next Morning lands); a ☕/🍸 toggle lets readers switch either way.
 - Morning renders in **LIGHT mode**; Afternoon renders in **DARK mode**.
 
 ## 2. Locked structure of an edition
@@ -71,9 +71,12 @@ Afternoon card titles, in order: 01 `🔔 The Close`, 02 `🟢 Winners & 🔴 Lo
 
 **What's Buzzing numbers rule.** Cite a ticker's **daily price move** (real, sourced). **Never** cite social mention-volume percentages (e.g. "mentions up 11,700%"). Qualitative phrasing like "topping the mention boards" is fine.
 
-**Earnings rule (Afternoon).** Only verified, released earnings get numbers. Marquee after-hours reporters that print after the edition are **named** in the On Deck card and the VO ("reporting after this edition: ..., we'll cover the reaction tomorrow"), never guessed at. At most one search to name them; never wait on or poll for their numbers.
+**Earnings rule (Afternoon).** The Afternoon Buzz runs about an hour after the close, so marquee after-close reporters have usually released: cover them (results vs consensus, guidance, after-hours move labeled after-hours), numbers from the company's own release. Only verified, released earnings get numbers. Names not yet reported when you draft are **named only** ("reporting later tonight: ..., we'll cover the reaction tomorrow"), never guessed at; never wait on or poll for a release.
 
 **SOURCE DIVERSITY RULE.** Do not lean on the same two or three outlets. Use a broad mix of tier-1 wires and papers, **primary sources** (Fed, BLS, EIA, SEC filings/8-K, company earnings releases), and independent fintwit voices (public posts only).
+- **Best source by topic:** earnings = the company's release / IR page / 8-K; Fed = federalreserve.gov; economic data = BLS, BEA, Census; oil and inventories = EIA; closing prices and moves = Nasdaq.com, CNBC, MarketWatch, Reuters, AP; corporate news = Reuters, AP, CNBC, the company.
+- **Credit the original outlet.** Aggregators (Yahoo Finance, MSN, etc.) often republish Reuters, AP, Motley Fool or Investopedia; chip the original reporter, not the aggregator. Use Yahoo Finance as a chip at most twice per edition.
+- **NO INLINE ATTRIBUTIONS IN BULLETS.** Never write "per Yahoo Finance", "according to CNBC", "TheStreet noted", etc. inside a bullet: sources live only in each card's source chips. The only exception is when who said it IS the news ("the company said", "the Fed said", "Goldman upgraded"). Grep your draft for "per " and "according to" before finishing.
 
 **What's Buzzing sourcing.** StockTwits trending, Reddit/WSB trackers (altindex, swaggystocks, tradestie), Google Trends. Fresher is better.
 

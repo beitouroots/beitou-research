@@ -14,7 +14,7 @@ STEPS:
 
 1. Run `date` and establish today's date in America/Los_Angeles.
 
-2. RESEARCH with WebSearch and WebFetch: the 4 most important PRE-MARKET stories across geopolitics, the Fed, technology, and macro/markets, plus a 5th "Big Brain" 6-12 month thesis. For the ticker strip, grab CURRENT PRE-MARKET data: index FUTURES (S&P 500, Nasdaq, Dow, Russell 2000) with their overnight / pre-market % move and the futures-implied level, the current 10Y yield, and current WTI/Brent prices. These MUST be PRE-MARKET, NOT yesterday's closing values. 2-3 distinct sources each. Vary your outlets; do not lean on the same two or three every day.
+2. RESEARCH with WebSearch and WebFetch: the 4 most important PRE-MARKET stories across geopolitics, the Fed, technology, and macro/markets, plus a 5th "Big Brain" 6-12 month thesis. This run starts around 6:00 AM PT, so any economic data released at 8:30 AM ET (5:30 AM PT) today, such as CPI, the jobs report, jobless claims, retail sales or GDP, is already OUT: report the actual figure versus expectations from the primary source (BLS, BEA, Census) and how futures reacted. For the ticker strip, grab CURRENT PRE-MARKET data: index FUTURES (S&P 500, Nasdaq, Dow, Russell 2000) with their overnight / pre-market % move and the futures-implied level, the current 10Y yield, and current WTI/Brent prices. These MUST be PRE-MARKET, NOT yesterday's closing values. 2-3 distinct sources each. Vary your outlets; do not lean on the same two or three every day.
 
 3. WHAT'S BUZZING: 3-4 tickers trending on fintwit (StockTwits trending, altindex.com, swaggystocks, tradestie, Google Trends). Use each ticker's real daily price move (close, or labeled pre-market), never an intraday extreme and never a social mention-volume percentage.
 
