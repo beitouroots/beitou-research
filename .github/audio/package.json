@@ -1,0 +1,8 @@
+{
+  "name": "buzz-audio",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "jsdom": "^24.1.0"
+  }
+}

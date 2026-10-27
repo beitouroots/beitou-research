@@ -1,0 +1,27 @@
+name: Audio build test (temporary)
+on:
+  push:
+    branches: [claude/cowork-code-cloud-migration-ubtlwa]
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/piper-voices
+            ~/.cache/buzz-audio-venv
+          key: buzz-audio-${{ runner.os }}-v1
+      - name: Build both editions
+        run: |
+          set -euo pipefail
+          which ffmpeg || echo "ffmpeg not preinstalled"
+          time bash .github/audio/build-audio.sh am
+          time bash .github/audio/build-audio.sh pm
+          ls -la audio; cat audio/*.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: buzz-audio-sample
+          path: audio/

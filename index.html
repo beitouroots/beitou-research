@@ -432,6 +432,7 @@
     document.getElementById('tab-pm').classList.toggle('on', which==='pm');
     document.body.classList.toggle('lightmode', which==='am'); // morning = light, afternoon = dark
     audioStop();
+    recCheck(which); // is there a recording of this edition?
     window.scrollTo(0,0);
   }
 
@@ -722,14 +723,73 @@
     }catch(_){}
   }
   function audioRelease(){ try{ if(KEEP) KEEP.pause(); }catch(_){} }
+  // ---- recorded audio: an MP3 the publishing workflow makes for each edition ----
+  // iOS mutes the speech voice when the phone is in Silent mode (only on the built-in speaker;
+  // AirPods/CarPlay still play), but it always plays real media files. So when today's recording
+  // exists, play uses it. The speech reader above stays as the fallback (no recording yet, or it
+  // fails to load). audio/<edition>.json says which edition date the MP3 was made from.
+  var REC = { el:null, which:null, done:false, ready:{am:null,pm:null} };
+  function recName(which){ return which==='am'?'morning':'afternoon'; }
+  function recEdDate(which){ var ed=document.getElementById(which==='am'?'ed-morning':'ed-afternoon'); return ed?(((ed.querySelector('.subline b')||{}).textContent)||'').trim():''; }
+  function recCheck(which){
+    try{
+      fetch('audio/'+recName(which)+'.json?_='+Date.now(),{cache:'no-store'})
+        .then(function(r){ return r.ok?r.json():null; })
+        .then(function(m){ REC.ready[which]=(m && m.date && String(m.date).trim()===recEdDate(which)) ? m : null; })
+        .catch(function(){ REC.ready[which]=null; });
+    }catch(_){ REC.ready[which]=null; }
+  }
+  function recActive(which){ return !!REC.el && REC.which===which; }
+  function recFmt(t){ t=Math.max(0,Math.floor(t||0)); return Math.floor(t/60)+':'+('0'+(t%60)).slice(-2); }
+  function recStatus(){
+    var s=statusEl(); if(!s||!REC.el||!REC.which||REC.done) return;
+    var d=REC.el.duration;
+    s.textContent=(A.playing?'🎧 Playing':'Paused')+' · '+recFmt(REC.el.currentTime)+(isFinite(d)?' / '+recFmt(d):'');
+  }
+  function recPlay(which){
+    var m=REC.ready[which];
+    if(!REC.el){
+      REC.el=new Audio(); REC.el.preload='auto'; REC.el.setAttribute('playsinline','');
+      REC.el.addEventListener('timeupdate',recStatus);
+      REC.el.addEventListener('ended',function(){ REC.done=true; A.playing=false; setPlayIcon(); var s=statusEl(); if(s)s.textContent='That’s the Buzz. Tap play to replay.'; try{REC.el.currentTime=0;}catch(_){} });
+      REC.el.addEventListener('error',function(){
+        if(!REC.which) return;
+        REC.ready[REC.which]=null; REC.which=null; A.playing=false; setPlayIcon();
+        var s=statusEl(); if(s)s.textContent='Recording unavailable. Tap play to use the live voice.';
+      });
+    }
+    if(A.which!==which) loadEdition(which); // keep the live-voice fallback pointed at this edition
+    if(REC.which!==which){ REC.el.src='audio/'+recName(which)+'.mp3?v='+encodeURIComponent(m.generated||m.date); REC.which=which; }
+    REC.done=false; A.playing=true; setPlayIcon();
+    REC.el.playbackRate=A.rate;
+    var p=REC.el.play(); // must stay inside the tap: iOS only starts media from a user gesture
+    if(p&&p.catch) p.catch(function(){ A.playing=false; setPlayIcon(); var s=statusEl(); if(s)s.textContent='Tap play to start the recording.'; });
+    recSession(which);
+  }
+  function recPause(){ if(REC.el) REC.el.pause(); A.playing=false; setPlayIcon(); recStatus(); }
+  function recSkip(sec){ if(!REC.el) return; var d=REC.el.duration||1e9; REC.el.currentTime=Math.min(Math.max(0,REC.el.currentTime+sec),d); recStatus(); }
+  // Lock screen / Control Center controls while the recording plays.
+  function recSession(which){
+    if(!('mediaSession' in navigator)) return;
+    try{
+      navigator.mediaSession.metadata=new MediaMetadata({ title:(which==='am'?'Morning':'Afternoon')+' Buzz', artist:'Beitou Roots Research', album:recEdDate(which) });
+      navigator.mediaSession.setActionHandler('play',function(){ recPlay(which); });
+      navigator.mediaSession.setActionHandler('pause',recPause);
+      navigator.mediaSession.setActionHandler('seekbackward',function(){ recSkip(-15); });
+      navigator.mediaSession.setActionHandler('seekforward',function(){ recSkip(15); });
+    }catch(_){}
+  }
   function audioToggle(which){
     var st=document.getElementById('stat-'+which);
-    if(!('speechSynthesis' in window)){ if(st)st.textContent='Live voice not supported here. Try Safari or Chrome.'; return; }
+    if(recActive(which)){ if(A.playing) recPause(); else recPlay(which); return; }
     if(A.playing && A.which===which){ A.playing=false; window.speechSynthesis.cancel(); audioRelease(); setPlayIcon(); if(st)st.textContent='Paused. Tap play to resume.'; return; }
+    if(REC.ready[which]){ audioStop(); recPlay(which); return; }
+    if(!('speechSynthesis' in window)){ if(st)st.textContent='Live voice not supported here. Try Safari or Chrome.'; return; }
     if(A.which!==which) loadEdition(which);
     A.playing=true; setPlayIcon(); if(st)st.textContent='Reading you the Buzz…'; audioUnlock(); speakIdx(true);
   }
   function audioSeek(which,dir){
+    if(recActive(which)){ recSkip(dir*15); return; }
     if(A.which!==which) loadEdition(which);
     A.idx=Math.min(Math.max(0,A.idx+dir),A.sents.length-1);
     var st=document.getElementById('stat-'+which);
@@ -739,9 +799,11 @@
   function audioSpeed(which){
     A.rate=RATES[(RATES.indexOf(A.rate)+1)%RATES.length];
     ['am','pm'].forEach(function(k){ var b=document.getElementById('spd-'+k); if(b) b.textContent=A.rate+'×'; });
+    if(REC.el) REC.el.playbackRate=A.rate;
+    if(recActive(which)) return;
     if(A.playing && A.which===which) speakIdx(true); // restart current line at the new speed
   }
-  function audioStop(){ if('speechSynthesis' in window) window.speechSynthesis.cancel(); clearTimeout(A.wd); audioRelease(); A.gen++; A.playing=false; A.which=null; A.idx=0; setPlayIcon(); }
+  function audioStop(){ if('speechSynthesis' in window) window.speechSynthesis.cancel(); clearTimeout(A.wd); audioRelease(); if(REC.el){ try{REC.el.pause();}catch(_){} } REC.which=null; A.gen++; A.playing=false; A.which=null; A.idx=0; setPlayIcon(); }
   if('speechSynthesis' in window){ window.speechSynthesis.getVoices(); buildVoicePicker(); window.speechSynthesis.onvoiceschanged=buildVoicePicker; setTimeout(buildVoicePicker,600); }
 
   // ---- ticker tiles: click to open that market's live StockTwits feed ----
