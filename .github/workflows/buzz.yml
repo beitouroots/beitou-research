@@ -105,7 +105,7 @@ jobs:
         if: steps.gate.outputs.go == 'yes'
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0
+          fetch-depth: 1   # history isn't needed, and audio/ makes the full history grow
 
       - name: Ensure publish branch exists
         if: steps.gate.outputs.go == 'yes'
@@ -190,10 +190,34 @@ jobs:
           o,c=len(re.findall(r'<div\b',body)),len(re.findall(r'</div>',body))
           if o!=c: print(f"::error::unbalanced <div> tags ({o} opened, {c} closed)"); sys.exit(1)
           print("div tags balanced")
+          # The generator must carry the player code over untouched; without it the recorded
+          # audio (and the Silent-mode fix it provides) silently stops being used.
+          for marker in ("function recPlay(", "function speakIdx(", "function audioToggle("):
+              if marker not in h: print(f"::error::page script lost {marker}"); sys.exit(1)
+          print("player code intact")
           PY
           echo "All verification checks passed."
 
-      # ── 5. Commit ──
+      # ── 5. Audio recording (an MP3 of the edition, so play works in iPhone Silent mode) ──
+      # Never blocks publishing: if this fails, the edition still goes out and the page's play
+      # button falls back to the live speech reader (it only uses an MP3 whose date matches).
+      - name: Restore audio tools cache
+        if: steps.gate.outputs.go == 'yes'
+        continue-on-error: true
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/piper-voices
+            ~/.cache/buzz-audio-venv
+          key: buzz-audio-${{ runner.os }}-v1
+
+      - name: Build audio recording
+        if: steps.gate.outputs.go == 'yes'
+        continue-on-error: true
+        timeout-minutes: 10
+        run: bash .github/audio/build-audio.sh "${{ steps.gate.outputs.edition }}"
+
+      # ── 6. Commit ──
       - name: Commit the edition
         if: steps.gate.outputs.go == 'yes'
         id: commit
@@ -205,6 +229,8 @@ jobs:
           LABEL=$( [ "$ED" = "am" ] && echo "Morning Buzz" || echo "Afternoon Buzz" )
           MSG="$LABEL $(TZ=America/Los_Angeles date +%F)"
           git add index.html
+          # The recording, if the audio step produced one (it only writes on success).
+          if [ -d audio ]; then git add audio; fi
           git commit -m "$MSG"
           # Push with an explicit token URL. The credentials actions/checkout persists
           # do not survive to this step (reads still worked because the repo is public,
@@ -223,7 +249,7 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: gh api -X POST "repos/${GITHUB_REPOSITORY}/pages/builds" --jq '.status // .'
 
-      # ── 6. Email subscribers ──
+      # ── 7. Email subscribers ──
       # NOTE: a push made with the default GITHUB_TOKEN does NOT trigger other
       # workflows, so send-buzz.yml will NOT fire on the commit above. The email
       # is therefore invoked directly here rather than via its push trigger.

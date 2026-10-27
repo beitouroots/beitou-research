@@ -34,13 +34,13 @@ for ext in onnx onnx.json; do
   [ -s "$VDIR/$VOICE.$ext" ] || curl -sSfL --retry 3 -o "$VDIR/$VOICE.$ext" "$BASE.$ext"
 done
 
-# 3. Speak it, then encode a small mono MP3 (speech sounds fine at 40 kbps; ~0.3 MB a minute).
+# 3. Speak it, then encode a small mono MP3 (speech sounds fine at 32 kbps; ~0.25 MB a minute).
 "$VENV/bin/python" -m piper -m "$VDIR/$VOICE.onnx" -c "$VDIR/$VOICE.onnx.json" \
   -i "$WORK/text.txt" -f "$WORK/out.wav" --sentence-silence 0.4
 if ! command -v ffmpeg >/dev/null; then
   sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg >/dev/null
 fi
-ffmpeg -nostdin -y -loglevel error -i "$WORK/out.wav" -ac 1 -ar 22050 -codec:a libmp3lame -b:a 40k \
+ffmpeg -nostdin -y -loglevel error -i "$WORK/out.wav" -ac 1 -ar 22050 -codec:a libmp3lame -b:a 32k \
   -id3v2_version 3 -metadata title="$LABEL, $DATE" -metadata artist="Beitou Roots Research" "$WORK/$NAME.mp3"
 DUR="$(ffprobe -v error -show_entries format=duration -of csv=p=0 "$WORK/$NAME.mp3")"
 python3 -c "import sys; d=float(sys.argv[1]); sys.exit(0 if d>=60 else 1)" "$DUR" \
