@@ -176,7 +176,6 @@
         <button class="cbtn" onclick="audioSeek('am',-1)" aria-label="Rewind one line">⏮</button>
         <button class="cbtn" onclick="audioSeek('am',1)" aria-label="Skip one line">⏭</button>
         <button class="cbtn spd" id="spd-am" onclick="audioSpeed('am')" aria-label="Playback speed">1&times;</button>
-        <select class="vsel" id="vsel-am" onchange="audioPickVoice(this.value)" aria-label="Voice"></select>
       </div></div>
     </div>
 
@@ -302,7 +301,6 @@
         <button class="cbtn" onclick="audioSeek('pm',-1)" aria-label="Rewind one line">⏮</button>
         <button class="cbtn" onclick="audioSeek('pm',1)" aria-label="Skip one line">⏭</button>
         <button class="cbtn spd" id="spd-pm" onclick="audioSpeed('pm')" aria-label="Playback speed">1&times;</button>
-        <select class="vsel" id="vsel-pm" onchange="audioPickVoice(this.value)" aria-label="Voice"></select>
       </div></div>
     </div>
 
@@ -882,7 +880,17 @@
   window.addEventListener('focus', function(){ ensureLatest(); });
 
   // ---- on load: pick by time (>= 2:30 PM PT shows Afternoon) ----
-  show( ptMinutes() >= (14*60+30) ? 'pm' : 'am' );
+  // Open on the NEWEST edition. Once the Afternoon Buzz is published its date matches the
+  // Morning's, so the page flips to Afternoon the moment it goes live (and stays there
+  // overnight and through the weekend) instead of waiting for a fixed time of day. When the
+  // next Morning edition publishes, its date moves ahead and the page flips back.
+  function newestEdition(){
+    function d(id){ var ed=document.getElementById(id); return ed?(((ed.querySelector('.subline b')||{}).textContent)||'').trim():''; }
+    var am=d('ed-morning'), pm=d('ed-afternoon');
+    if(am && pm) return am===pm ? 'pm' : 'am';
+    return ptMinutes() >= (14*60+30) ? 'pm' : 'am'; // dates unreadable: old time-of-day rule
+  }
+  show( newestEdition() );
   linkifyTiles();
   ensureLatest();
 </script>
