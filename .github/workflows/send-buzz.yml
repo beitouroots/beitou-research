@@ -1,8 +1,8 @@
 name: Send Daily Buzz email
+# buzz.yml emails subscribers itself after publishing. This workflow is now manual-only
+# (resend a missed email); it no longer fires on push, so a push from the Mac's leftover
+# desktop task can never send a duplicate email.
 on:
-  push:
-    branches: [main]
-    paths: ['index.html']
   workflow_dispatch:
     inputs:
       edition:

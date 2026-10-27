@@ -86,8 +86,11 @@ jobs:
           LABEL=$( [ "$ED" = "am" ] && echo "Morning Buzz" || echo "Afternoon Buzz" )
 
           # Already published today? Then this is a later retry: do nothing.
+          # Only editions published by this workflow count. A copy pushed from Mel's Mac
+          # (committed as mel@beitouroots.com by a leftover desktop task) is ignored, so
+          # the cloud edition still runs, replaces it, and sends the one email.
           MSGS=$(gh api "repos/${GITHUB_REPOSITORY}/commits?sha=${PUBLISH_BRANCH}&per_page=30" \
-                   --jq '.[].commit.message | split("\n")[0]' 2>/dev/null || true)
+                   --jq '.[] | select(.commit.committer.email != "mel@beitouroots.com") | .commit.message | split("\n")[0]' 2>/dev/null || true)
           if printf '%s\n' "$MSGS" | grep -qxF "$LABEL $PT_DATE"; then
             echo "go=no" >> "$GITHUB_OUTPUT"
             echo "'$LABEL $PT_DATE' is already on $PUBLISH_BRANCH. Skipping."
@@ -108,8 +111,10 @@ jobs:
         if: steps.gate.outputs.go == 'yes'
         run: |
           set -euo pipefail
-          git config user.name  beitouroots
-          git config user.email mel@beitouroots.com
+          # Never commit as mel@beitouroots.com: that identity marks a desktop push,
+          # which the gate above ignores and block-desktop-buzz.yml reverts.
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           if git ls-remote --exit-code --heads origin "$PUBLISH_BRANCH" >/dev/null 2>&1; then
             git fetch origin "$PUBLISH_BRANCH"
             git checkout "$PUBLISH_BRANCH"
