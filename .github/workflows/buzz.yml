@@ -144,6 +144,7 @@ jobs:
 
       - name: Generate with Claude Code
         if: steps.gate.outputs.go == 'yes'
+        continue-on-error: true   # an outright error also gets the retry below (or fails verification)
         uses: anthropics/claude-code-action@v1
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
@@ -151,6 +152,45 @@ jobs:
           # v1 replaced the separate `model` and `allowed_tools` inputs with a single
           # claude_args string passed straight through to the Claude CLI. Passing the
           # old input names makes the action fail with "Unexpected input(s)".
+          claude_args: |
+            --model ${{ env.BUZZ_MODEL }}
+            --allowedTools Read,Edit,Write,Bash,WebSearch,WebFetch
+            --max-turns 60
+
+      # The writer occasionally ends "successfully" after a few turns without editing the page
+      # (seen 10/8 and 10/28). Keep its log for diagnosis and give it one more attempt in the
+      # same run, so the edition still goes out on time instead of failing at verification.
+      - name: Check the draft
+        if: steps.gate.outputs.go == 'yes'
+        id: draft
+        run: |
+          if git diff --quiet -- index.html; then
+            echo "changed=no" >> "$GITHUB_OUTPUT"
+            echo "::warning::The writer ended without editing index.html; retrying once."
+          else
+            echo "changed=yes" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Keep the writer's log (empty draft)
+        if: steps.gate.outputs.go == 'yes' && steps.draft.outputs.changed == 'no'
+        continue-on-error: true
+        uses: actions/upload-artifact@v4
+        with:
+          name: writer-log-attempt-1
+          path: ${{ runner.temp }}/claude-execution-output.json
+          retention-days: 14
+
+      - name: Generate with Claude Code (retry)
+        if: steps.gate.outputs.go == 'yes' && steps.draft.outputs.changed == 'no'
+        uses: anthropics/claude-code-action@v1
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          prompt: |
+            IMPORTANT: a previous attempt at this task ended WITHOUT editing index.html, so nothing was published.
+            You must finish the task with index.html edited. If a source, search or fetch fails, work around it
+            (use another source, or soften or cut that item) and keep going. Do not stop to ask questions.
+
+            ${{ steps.prompt.outputs.text }}
           claude_args: |
             --model ${{ env.BUZZ_MODEL }}
             --allowedTools Read,Edit,Write,Bash,WebSearch,WebFetch
