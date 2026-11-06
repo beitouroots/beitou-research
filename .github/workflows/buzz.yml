@@ -158,20 +158,28 @@ jobs:
             --max-turns 60
 
       # The writer occasionally ends "successfully" after a few turns without editing the page
-      # (seen 10/8 and 10/28). Keep its log for diagnosis and give it one more attempt in the
+      # (seen 10/8 and 10/28), or edits only the scoreboard and leaves the previous edition's
+      # sections in place (11/5). Keep its log for diagnosis and give it one more attempt in the
       # same run, so the edition still goes out on time instead of failing at verification.
       - name: Check the draft
         if: steps.gate.outputs.go == 'yes'
         id: draft
         run: |
+          ED="${{ steps.gate.outputs.edition }}"
           if git diff --quiet -- index.html; then
             echo "changed=no" >> "$GITHUB_OUTPUT"
+            echo "why=ended WITHOUT editing index.html, so nothing was published" >> "$GITHUB_OUTPUT"
             echo "::warning::The writer ended without editing index.html; retrying once."
+          elif ! python3 .github/scripts/check-fresh.py "$ED" index.html <(git show HEAD:index.html); then
+            git checkout -- index.html   # retry from a clean page, not a half-updated one
+            echo "changed=no" >> "$GITHUB_OUTPUT"
+            echo "why=updated only part of the page and left the previous edition's story sections in place, so the page contradicted its own scoreboard" >> "$GITHUB_OUTPUT"
+            echo "::warning::The writer left the previous edition's sections in place; retrying once."
           else
             echo "changed=yes" >> "$GITHUB_OUTPUT"
           fi
 
-      - name: Keep the writer's log (empty draft)
+      - name: Keep the writer's log (bad draft)
         if: steps.gate.outputs.go == 'yes' && steps.draft.outputs.changed == 'no'
         continue-on-error: true
         uses: actions/upload-artifact@v4
@@ -186,9 +194,11 @@ jobs:
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           prompt: |
-            IMPORTANT: a previous attempt at this task ended WITHOUT editing index.html, so nothing was published.
-            You must finish the task with index.html edited. If a source, search or fetch fails, work around it
-            (use another source, or soften or cut that item) and keep going. Do not stop to ask questions.
+            IMPORTANT: a previous attempt at this task ${{ steps.draft.outputs.why }}.
+            You must finish the whole task: rewrite every section of today's edition from today's sources,
+            not only the scoreboard, and make the sections agree with the tiles. If a source, search or fetch
+            fails, work around it (use another source, or soften or cut that item) and keep going.
+            Do not stop to ask questions.
 
             ${{ steps.prompt.outputs.text }}
           claude_args: |
@@ -206,6 +216,8 @@ jobs:
 
           [ -s "$F" ] || fail "index.html is missing or empty"
           git diff --quiet -- "$F" && fail "index.html was not modified: generation produced nothing"
+          python3 .github/scripts/check-fresh.py "${{ steps.gate.outputs.edition }}" "$F" <(git show HEAD:"$F") \
+            || fail "the edition repeats the previous one or contradicts its own scoreboard"
 
           # House style and structural invariants (same checks the Cowork task ran).
           ! grep -q '—\|–' "$F" || fail "em-dash found (house style forbids them)"
