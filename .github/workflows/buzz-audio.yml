@@ -30,13 +30,17 @@ jobs:
         with:
           fetch-depth: 1
 
+      # The cached venv only works with the Python it was built with, so key the cache on it.
+      - id: pyver
+        run: echo "v=$(python3 -c 'import sys; print("%d.%d" % sys.version_info[:2])')" >> "$GITHUB_OUTPUT"
+
       - uses: actions/cache@v4
         continue-on-error: true
         with:
           path: |
             ~/.cache/piper-voices
             ~/.cache/buzz-audio-venv
-          key: buzz-audio-${{ runner.os }}-v1
+          key: buzz-audio-${{ runner.os }}-py${{ steps.pyver.outputs.v }}-v1
 
       - name: Record
         run: |

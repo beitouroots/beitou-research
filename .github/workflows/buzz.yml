@@ -253,6 +253,12 @@ jobs:
       # ── 5. Audio recording (an MP3 of the edition, so play works in iPhone Silent mode) ──
       # Never blocks publishing: if this fails, the edition still goes out and the page's play
       # button falls back to the live speech reader (it only uses an MP3 whose date matches).
+      # The cached venv only works with the Python it was built with, so key the cache on it.
+      - name: Python version for the audio cache
+        if: steps.gate.outputs.go == 'yes'
+        id: pyver
+        run: echo "v=$(python3 -c 'import sys; print("%d.%d" % sys.version_info[:2])')" >> "$GITHUB_OUTPUT"
+
       - name: Restore audio tools cache
         if: steps.gate.outputs.go == 'yes'
         continue-on-error: true
@@ -261,7 +267,7 @@ jobs:
           path: |
             ~/.cache/piper-voices
             ~/.cache/buzz-audio-venv
-          key: buzz-audio-${{ runner.os }}-v1
+          key: buzz-audio-${{ runner.os }}-py${{ steps.pyver.outputs.v }}-v1
 
       - name: Build audio recording
         if: steps.gate.outputs.go == 'yes'
