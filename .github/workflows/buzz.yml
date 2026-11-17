@@ -271,6 +271,7 @@ jobs:
 
       - name: Build audio recording
         if: steps.gate.outputs.go == 'yes'
+        id: audio
         continue-on-error: true
         timeout-minutes: 10
         run: bash .github/audio/build-audio.sh "${{ steps.gate.outputs.edition }}"
@@ -334,3 +335,12 @@ jobs:
             echo "- Email sent: \`$SEND_EMAIL\`"
             echo "- Commit: ${{ steps.commit.outputs.committed }}"
           } >> "$GITHUB_STEP_SUMMARY"
+
+      # The recording never blocks publishing, so a failure used to go unnoticed (11/16-11/17).
+      # Once the edition is out, mark the run failed so GitHub notifies Mel (GitHub Mobile push).
+      # Retries do not regenerate: the gate sees today's edition is already published.
+      - name: Flag a missing recording
+        if: steps.gate.outputs.go == 'yes' && steps.audio.outcome == 'failure'
+        run: |
+          echo "::error::The ${{ steps.gate.outputs.edition }} edition published, but its MP3 failed, so the page is using the live voice. See the Build audio recording step, then run Rebuild Buzz audio."
+          exit 1
