@@ -25,7 +25,12 @@ DATE="$(node "$HERE/edition-text.mjs" "$ED" "$ROOT/index.html" --date)"
 echo "$LABEL for $DATE: $(wc -l < "$WORK/text.txt") lines, $(wc -c < "$WORK/text.txt") chars"
 
 # 2. Piper in its own venv (system pip is locked on recent Ubuntu runners) and the voice model.
-[ -x "$VENV/bin/python" ] || python3 -m venv "$VENV"
+# A cached venv goes stale when the runner image upgrades Python (seen 11/16: "No module named
+# pip"), so rebuild it whenever it can no longer run pip.
+if ! "$VENV/bin/python" -m pip --version >/dev/null 2>&1; then
+  echo "Audio tools venv missing or stale; rebuilding it."
+  rm -rf "$VENV"; python3 -m venv "$VENV"
+fi
 "$VENV/bin/python" -m pip install --quiet --disable-pip-version-check piper-tts
 mkdir -p "$VDIR"
 IFS=- read -r LOCALE SPEAKER QUALITY <<< "$VOICE"
