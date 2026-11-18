@@ -31,19 +31,26 @@ if ! "$VENV/bin/python" -m pip --version >/dev/null 2>&1; then
   echo "Audio tools venv missing or stale; rebuilding it."
   rm -rf "$VENV"; python3 -m venv "$VENV"
 fi
-"$VENV/bin/python" -m pip install --quiet --disable-pip-version-check piper-tts
+# Each stage gets its own time limit and a log line, so a hang (11/18: the step sat silent for
+# 10 minutes) fails fast and shows where it stuck.
+echo "Installing Piper..."
+timeout 240 "$VENV/bin/python" -m pip install --quiet --disable-pip-version-check --timeout 30 piper-tts
 mkdir -p "$VDIR"
 IFS=- read -r LOCALE SPEAKER QUALITY <<< "$VOICE"
 BASE="https://huggingface.co/rhasspy/piper-voices/resolve/v1.0.0/${LOCALE%%_*}/$LOCALE/$SPEAKER/$QUALITY/$VOICE"
 for ext in onnx onnx.json; do
-  [ -s "$VDIR/$VOICE.$ext" ] || curl -sSfL --retry 3 -o "$VDIR/$VOICE.$ext" "$BASE.$ext"
+  [ -s "$VDIR/$VOICE.$ext" ] || { echo "Downloading voice $VOICE.$ext..."; \
+    curl -sSfL --retry 3 --connect-timeout 20 --max-time 180 -o "$VDIR/$VOICE.$ext.part" "$BASE.$ext" \
+    && mv "$VDIR/$VOICE.$ext.part" "$VDIR/$VOICE.$ext"; }
 done
 
 # 3. Speak it, then encode a small mono MP3 (speech sounds fine at 32 kbps; ~0.25 MB a minute).
-"$VENV/bin/python" -m piper -m "$VDIR/$VOICE.onnx" -c "$VDIR/$VOICE.onnx.json" \
+echo "Synthesizing speech..."
+timeout 300 "$VENV/bin/python" -m piper -m "$VDIR/$VOICE.onnx" -c "$VDIR/$VOICE.onnx.json" \
   -i "$WORK/text.txt" -f "$WORK/out.wav" --sentence-silence 0.4
 if ! command -v ffmpeg >/dev/null; then
-  sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg >/dev/null
+  echo "Installing ffmpeg..."
+  timeout 240 sudo apt-get update -qq && timeout 240 sudo apt-get install -y -qq ffmpeg >/dev/null
 fi
 ffmpeg -nostdin -y -loglevel error -i "$WORK/out.wav" -ac 1 -ar 22050 -codec:a libmp3lame -b:a 32k \
   -id3v2_version 3 -metadata title="$LABEL, $DATE" -metadata artist="Beitou Roots Research" "$WORK/$NAME.mp3"

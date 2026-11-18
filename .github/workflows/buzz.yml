@@ -250,33 +250,6 @@ jobs:
           PY
           echo "All verification checks passed."
 
-      # ── 5. Audio recording (an MP3 of the edition, so play works in iPhone Silent mode) ──
-      # Never blocks publishing: if this fails, the edition still goes out and the page's play
-      # button falls back to the live speech reader (it only uses an MP3 whose date matches).
-      # The cached venv only works with the Python it was built with, so key the cache on it.
-      - name: Python version for the audio cache
-        if: steps.gate.outputs.go == 'yes'
-        id: pyver
-        run: echo "v=$(python3 -c 'import sys; print("%d.%d" % sys.version_info[:2])')" >> "$GITHUB_OUTPUT"
-
-      - name: Restore audio tools cache
-        if: steps.gate.outputs.go == 'yes'
-        continue-on-error: true
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.cache/piper-voices
-            ~/.cache/buzz-audio-venv
-          key: buzz-audio-${{ runner.os }}-py${{ steps.pyver.outputs.v }}-v1
-
-      - name: Build audio recording
-        if: steps.gate.outputs.go == 'yes'
-        id: audio
-        continue-on-error: true
-        timeout-minutes: 10
-        run: bash .github/audio/build-audio.sh "${{ steps.gate.outputs.edition }}"
-
-      # ── 6. Commit ──
       - name: Commit the edition
         if: steps.gate.outputs.go == 'yes'
         id: commit
@@ -288,8 +261,6 @@ jobs:
           LABEL=$( [ "$ED" = "am" ] && echo "Morning Buzz" || echo "Afternoon Buzz" )
           MSG="$LABEL $(TZ=America/Los_Angeles date +%F)"
           git add index.html
-          # The recording, if the audio step produced one (it only writes on success).
-          if [ -d audio ]; then git add audio; fi
           git commit -m "$MSG"
           # Push with an explicit token URL. The credentials actions/checkout persists
           # do not survive to this step (reads still worked because the repo is public,
@@ -324,6 +295,59 @@ jobs:
           npm install --no-audit --no-fund
           node send-buzz.mjs ${{ steps.gate.outputs.edition }}
 
+      # ── Audio recording (an MP3 of the edition, so play works in iPhone Silent mode) ──
+      # Runs AFTER the edition is published and emailed, so a slow or broken recording can never
+      # delay them (on 11/18 a hung recording held the edition back 10 minutes). Never blocks
+      # anything: until an MP3 with today's date lands, the page's play button uses the live voice.
+      - name: Python version for the audio cache
+        if: steps.gate.outputs.go == 'yes'
+        id: pyver
+        run: echo "v=$(python3 -c 'import sys; print("%d.%d" % sys.version_info[:2])')" >> "$GITHUB_OUTPUT"
+
+      - name: Restore audio tools cache
+        if: steps.gate.outputs.go == 'yes'
+        continue-on-error: true
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/piper-voices
+            ~/.cache/buzz-audio-venv
+          key: buzz-audio-${{ runner.os }}-py${{ steps.pyver.outputs.v }}-v1
+
+      - name: Build audio recording
+        if: steps.gate.outputs.go == 'yes'
+        id: audio
+        continue-on-error: true
+        timeout-minutes: 8
+        run: bash .github/audio/build-audio.sh "${{ steps.gate.outputs.edition }}"
+
+      # One more try with a fresh tools venv: most failures are a stale or half-written cache
+      # or a network hiccup while installing or downloading.
+      - name: Build audio recording (retry)
+        if: steps.gate.outputs.go == 'yes' && steps.audio.outcome != 'success'
+        id: audio2
+        continue-on-error: true
+        timeout-minutes: 8
+        run: |
+          rm -rf ~/.cache/buzz-audio-venv
+          bash .github/audio/build-audio.sh "${{ steps.gate.outputs.edition }}"
+
+      - name: Commit the recording
+        if: steps.gate.outputs.go == 'yes' && (steps.audio.outcome == 'success' || steps.audio2.outcome == 'success')
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          git add audio
+          if git diff --cached --quiet; then echo "No audio change to commit."; exit 0; fi
+          git commit -m "Buzz audio: ${{ steps.commit.outputs.committed }}"
+          git push "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" \
+                   "HEAD:$PUBLISH_BRANCH"
+          if [ "$PUBLISH_BRANCH" = main ]; then
+            gh api -X POST "repos/${GITHUB_REPOSITORY}/pages/builds" --jq '.status // .' || true
+          fi
+
       - name: Summary
         if: steps.gate.outputs.go == 'yes'
         run: |
@@ -340,7 +364,7 @@ jobs:
       # Once the edition is out, mark the run failed so GitHub notifies Mel (GitHub Mobile push).
       # Retries do not regenerate: the gate sees today's edition is already published.
       - name: Flag a missing recording
-        if: steps.gate.outputs.go == 'yes' && steps.audio.outcome == 'failure'
+        if: steps.gate.outputs.go == 'yes' && steps.audio.outcome != 'success' && steps.audio2.outcome != 'success'
         run: |
           echo "::error::The ${{ steps.gate.outputs.edition }} edition published, but its MP3 failed, so the page is using the live voice. See the Build audio recording step, then run Rebuild Buzz audio."
           exit 1
