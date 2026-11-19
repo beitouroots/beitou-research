@@ -30,9 +30,14 @@ jobs:
         with:
           fetch-depth: 1
 
-      # The cached venv only works with the Python it was built with, so key the cache on it.
+      # The cached venv only works with the exact Python it was built with, so key the cache on it.
+      # Pin the recorder's Python (see buzz.yml): Kokoro's spaCy dependency has no 3.14 wheels.
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
       - id: pyver
-        run: echo "v=$(python3 -c 'import sys; print("%d.%d" % sys.version_info[:2])')" >> "$GITHUB_OUTPUT"
+        run: echo "v=$(python3 -c 'import sys; print("%d.%d.%d" % sys.version_info[:3])')" >> "$GITHUB_OUTPUT"
 
       - uses: actions/cache@v4
         continue-on-error: true
