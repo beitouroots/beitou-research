@@ -2,8 +2,10 @@
 # Builds audio/<morning|afternoon>.mp3 (+ .json) for one Buzz edition from the current index.html.
 # Run from anywhere: bash .github/audio/build-audio.sh am|pm
 #
-# Voice: Piper (free, open source, runs on the runner). Change voice with BUZZ_VOICE, e.g.
-# en_US-ryan-high (male) or en_US-amy-medium; names from huggingface.co/rhasspy/piper-voices.
+# Voice: Kokoro (hexgrad/Kokoro-82M; free, open source, runs on the runner's CPU), voice af_heart.
+# Change it with BUZZ_VOICE, e.g. am_michael (male). It replaced Piper on 11/19 because it reads
+# words from context ("wind it down", "the close"); fix any it still gets wrong in
+# pronunciations.txt.
 # Output is written to audio/ only after every step succeeds, so a failure leaves the previous
 # files in place; the page then sees a date mismatch and falls back to the live speech reader.
 set -euo pipefail
@@ -12,9 +14,9 @@ ED="${1:-}"
 case "$ED" in am) NAME=morning; LABEL="Morning Buzz";; pm) NAME=afternoon; LABEL="Afternoon Buzz";;
   *) echo "usage: build-audio.sh am|pm" >&2; exit 2;; esac
 
-VOICE="${BUZZ_VOICE:-en_US-lessac-high}"
+VOICE="${BUZZ_VOICE:-af_heart}"
 CACHE="${BUZZ_AUDIO_CACHE:-$HOME/.cache}"
-VDIR="$CACHE/piper-voices"; VENV="$CACHE/buzz-audio-venv"
+VENV="$CACHE/buzz-audio-venv"; export HF_HOME="$CACHE/huggingface"
 HERE="$(cd "$(dirname "$0")" && pwd)"; ROOT="$(cd "$HERE/../.." && pwd)"
 WORK="$(mktemp -d)"; trap 'rm -rf "$WORK"' EXIT
 
@@ -24,30 +26,34 @@ node "$HERE/edition-text.mjs" "$ED" "$ROOT/index.html" > "$WORK/text.txt"
 DATE="$(node "$HERE/edition-text.mjs" "$ED" "$ROOT/index.html" --date)"
 echo "$LABEL for $DATE: $(wc -l < "$WORK/text.txt") lines, $(wc -c < "$WORK/text.txt") chars"
 
-# 2. Piper in its own venv (system pip is locked on recent Ubuntu runners) and the voice model.
-# A cached venv goes stale when the runner image upgrades Python (seen 11/16: "No module named
-# pip"), so rebuild it whenever it can no longer run pip.
+# 2. Kokoro in its own venv (system pip is locked on recent Ubuntu runners). A cached venv goes
+# stale when the runner image upgrades Python (seen 11/16: "No module named pip"), so rebuild it
+# whenever it can no longer run pip. Each stage has its own time limit and a log line, so a hang
+# (11/18: the step sat silent for 10 minutes) fails fast and shows where it stuck.
 if ! "$VENV/bin/python" -m pip --version >/dev/null 2>&1; then
   echo "Audio tools venv missing or stale; rebuilding it."
   rm -rf "$VENV"; python3 -m venv "$VENV"
 fi
-# Each stage gets its own time limit and a log line, so a hang (11/18: the step sat silent for
-# 10 minutes) fails fast and shows where it stuck.
-echo "Installing Piper..."
-timeout 240 "$VENV/bin/python" -m pip install --quiet --disable-pip-version-check --timeout 30 piper-tts
-mkdir -p "$VDIR"
-IFS=- read -r LOCALE SPEAKER QUALITY <<< "$VOICE"
-BASE="https://huggingface.co/rhasspy/piper-voices/resolve/v1.0.0/${LOCALE%%_*}/$LOCALE/$SPEAKER/$QUALITY/$VOICE"
-for ext in onnx onnx.json; do
-  [ -s "$VDIR/$VOICE.$ext" ] || { echo "Downloading voice $VOICE.$ext..."; \
-    curl -sSfL --retry 3 --connect-timeout 20 --max-time 180 -o "$VDIR/$VOICE.$ext.part" "$BASE.$ext" \
-    && mv "$VDIR/$VOICE.$ext.part" "$VDIR/$VOICE.$ext"; }
-done
+if ! "$VENV/bin/python" -c "import kokoro, soundfile, en_core_web_sm" >/dev/null 2>&1; then
+  echo "Installing Kokoro..."
+  timeout 420 "$VENV/bin/python" -m pip install --quiet --disable-pip-version-check --timeout 30 \
+    torch --index-url https://download.pytorch.org/whl/cpu
+  timeout 300 "$VENV/bin/python" -m pip install --quiet --disable-pip-version-check --timeout 30 \
+    kokoro soundfile
+  timeout 180 "$VENV/bin/python" -m spacy download en_core_web_sm >/dev/null
+fi
+# espeak-ng voices the few words outside Kokoro's dictionary.
+if ! command -v espeak-ng >/dev/null; then
+  echo "Installing espeak-ng..."
+  timeout 240 sudo apt-get update -qq && timeout 240 sudo apt-get install -y -qq espeak-ng >/dev/null
+fi
 
-# 3. Speak it, then encode a small mono MP3 (speech sounds fine at 32 kbps; ~0.25 MB a minute).
+# 3. Speak it (the model downloads once, then comes from the cache), then encode a small mono
+# MP3 (speech sounds fine at 32 kbps; ~0.25 MB a minute).
 echo "Synthesizing speech..."
-timeout 300 "$VENV/bin/python" -m piper -m "$VDIR/$VOICE.onnx" -c "$VDIR/$VOICE.onnx.json" \
-  -i "$WORK/text.txt" -f "$WORK/out.wav" --sentence-silence 0.4
+timeout 420 "$VENV/bin/python" "$HERE/kokoro-tts.py" "$WORK/text.txt" "$WORK/out.wav" "$VOICE" 2>&1 \
+  | grep -v -i -E "warn|super\(\)|WeightNorm" || true
+[ -s "$WORK/out.wav" ] || { echo "::error::speech synthesis produced no audio"; exit 1; }
 if ! command -v ffmpeg >/dev/null; then
   echo "Installing ffmpeg..."
   timeout 240 sudo apt-get update -qq && timeout 240 sudo apt-get install -y -qq ffmpeg >/dev/null
@@ -61,7 +67,7 @@ python3 -c "import sys; d=float(sys.argv[1]); sys.exit(0 if d>=60 else 1)" "$DUR
 # 4. Publish into the site (the workflow commits audio/ together with the edition).
 mkdir -p "$ROOT/audio"
 mv "$WORK/$NAME.mp3" "$ROOT/audio/$NAME.mp3"
-python3 - "$ROOT/audio/$NAME.json" "$ED" "$DATE" "$DUR" "$VOICE" <<'PY'
+python3 - "$ROOT/audio/$NAME.json" "$ED" "$DATE" "$DUR" "kokoro-$VOICE" <<'PY'
 import json, sys, datetime
 path, ed, date, dur, voice = sys.argv[1:]
 json.dump({"edition": ed, "date": date, "duration": round(float(dur)),

@@ -310,9 +310,9 @@ jobs:
         uses: actions/cache@v4
         with:
           path: |
-            ~/.cache/piper-voices
+            ~/.cache/huggingface
             ~/.cache/buzz-audio-venv
-          key: buzz-audio-${{ runner.os }}-py${{ steps.pyver.outputs.v }}-v1
+          key: buzz-audio-${{ runner.os }}-py${{ steps.pyver.outputs.v }}-kokoro-v1
 
       - name: Build audio recording
         if: steps.gate.outputs.go == 'yes'

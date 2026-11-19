@@ -1,0 +1,4 @@
+# Pronunciation fixes for the Kokoro voice, applied to each line before it is spoken.
+# One per line: the exact phrase (case-sensitive, whole words), a TAB, then the replacement.
+# Respell it ("Beitou	Bay-toe") or give phonemes ("read	[read](/ɹˈid/)"), where /ɹˈid/ is
+# "reed" and /ɹˈɛd/ is "red". Keep entries as phrases when the word is only wrong in context.

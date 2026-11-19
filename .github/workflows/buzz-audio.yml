@@ -38,9 +38,9 @@ jobs:
         continue-on-error: true
         with:
           path: |
-            ~/.cache/piper-voices
+            ~/.cache/huggingface
             ~/.cache/buzz-audio-venv
-          key: buzz-audio-${{ runner.os }}-py${{ steps.pyver.outputs.v }}-v1
+          key: buzz-audio-${{ runner.os }}-py${{ steps.pyver.outputs.v }}-kokoro-v1
 
       - name: Record
         run: |
