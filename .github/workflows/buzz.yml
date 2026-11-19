@@ -299,10 +299,19 @@ jobs:
       # Runs AFTER the edition is published and emailed, so a slow or broken recording can never
       # delay them (on 11/18 a hung recording held the edition back 10 minutes). Never blocks
       # anything: until an MP3 with today's date lands, the page's play button uses the live voice.
+      # Pin the recorder's Python: the runner's default moves (3.14 by 11/18), which broke the
+      # cached venv on 11/16 and has no ready-made wheels for Kokoro's spaCy dependency.
+      - name: Python for the audio recorder
+        if: steps.gate.outputs.go == 'yes'
+        continue-on-error: true
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
       - name: Python version for the audio cache
         if: steps.gate.outputs.go == 'yes'
         id: pyver
-        run: echo "v=$(python3 -c 'import sys; print("%d.%d" % sys.version_info[:2])')" >> "$GITHUB_OUTPUT"
+        run: echo "v=$(python3 -c 'import sys; print("%d.%d.%d" % sys.version_info[:3])')" >> "$GITHUB_OUTPUT"
 
       - name: Restore audio tools cache
         if: steps.gate.outputs.go == 'yes'
